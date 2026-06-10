@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+.vs/
+
+# Secrets & local config (NEVER commit real secrets)
+appsettings.Development.json
+appsettings.*.Local.json
+*.env
+.env
+
+# User-uploaded media (regenerated at runtime; not source)
+src/Portfolio.Web/wwwroot/uploads/
+
+# Logs / temp
+*.log
+app.log
+
+# Cloudinary onboarding demo (contains inline credentials — do not commit)
+cloudinary-demo/
