@@ -1,0 +1,5 @@
+// Confirmation prompts for destructive admin forms (CSP-safe replacement for inline onsubmit).
+document.addEventListener('submit', function (e) {
+    const msg = e.target.getAttribute('data-confirm');
+    if (msg && !window.confirm(msg)) e.preventDefault();
+});

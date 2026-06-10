@@ -1,0 +1,163 @@
+﻿@model Project
+@{
+    ViewData["Title"] = Model.Id == 0 ? "Add Project" : "Edit Project";
+}
+<div class="admin-card" style="max-width:760px;">
+    <div class="card-head"><h2>@ViewData["Title"]</h2><a class="admin-link" asp-action="Index">← Back</a></div>
+    <form asp-action="EditProject" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+        <input type="hidden" asp-for="Id" />
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label asp-for="Title" class="form-label"></label>
+                <input asp-for="Title" class="form-control" />
+                <span asp-validation-for="Title" class="text-danger small"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Category" class="form-label"></label>
+                <input asp-for="Category" class="form-control" placeholder="Game / Backend / AR-VR" />
+            </div>
+            <div class="col-12">
+                <label asp-for="Slug" class="form-label"></label>
+                <input asp-for="Slug" class="form-control" placeholder="leave blank to auto-generate from title" />
+                <div class="small text-dim">Used in the detail page URL: /project/your-slug</div>
+            </div>
+            <div class="col-12">
+                <label asp-for="Summary" class="form-label"></label>
+                <input asp-for="Summary" class="form-control" />
+            </div>
+            <div class="col-12">
+                <label asp-for="Description" class="form-label"></label>
+                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="Description" class="text-danger small"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Challenge" class="form-label"></label>
+                <textarea asp-for="Challenge" class="form-control" rows="3"></textarea>
+                <div class="small text-dim">Optional — shown as a case-study section. One paragraph per line.</div>
+            </div>
+            <div class="col-12">
+                <label asp-for="Solution" class="form-label"></label>
+                <textarea asp-for="Solution" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="col-12">
+                <label asp-for="Outcome" class="form-label"></label>
+                <textarea asp-for="Outcome" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="col-12">
+                <label asp-for="MyRole" class="form-label"></label>
+                <textarea asp-for="MyRole" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-8">
+                <label asp-for="TechStack" class="form-label"></label>
+                <input asp-for="TechStack" class="form-control" placeholder="Unity, C#, Firebase" />
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Timeline" class="form-label"></label>
+                <input asp-for="Timeline" class="form-control" />
+            </div>
+            <div class="col-12">
+                <label asp-for="ImageUrl" class="form-label"></label>
+                <input asp-for="ImageUrl" class="form-control" placeholder="https://..." />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="ProjectUrl" class="form-label"></label>
+                <input asp-for="ProjectUrl" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="GitHubUrl" class="form-label"></label>
+                <input asp-for="GitHubUrl" class="form-control" />
+            </div>
+            <div class="col-md-4">
+                <label asp-for="SortOrder" class="form-label"></label>
+                <input asp-for="SortOrder" class="form-control" />
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="form-check">
+                    <input asp-for="IsFeatured" class="form-check-input" />
+                    <label asp-for="IsFeatured" class="form-check-label"></label>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-accent">Save</button>
+            <a class="btn btn-outline-light" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@{
+    var media = ViewBag.Media as List<ProjectMedia> ?? new();
+}
+<div class="admin-card" style="max-width:760px;">
+    <div class="card-head"><h2>🖼 Media gallery</h2></div>
+
+    @if (Model.Id == 0)
+    {
+        <p class="text-dim mb-0">Save the project first, then come back here to upload screenshots and videos.</p>
+    }
+    else
+    {
+        <div class="row g-3 mb-4">
+            @if (!media.Any())
+            {
+                <p class="text-dim">No media yet. Upload screenshots/videos or add a YouTube/Vimeo link below.</p>
+            }
+            @foreach (var m in media)
+            {
+                <div class="col-md-4">
+                    <div style="border:1px solid var(--a-border);border-radius:10px;overflow:hidden;background:#11111c;">
+                        <div style="height:120px;display:grid;place-items:center;background:#0c0c16;">
+                            @if (m.MediaType == "image")
+                            {
+                                <img src="@m.Url" style="width:100%;height:120px;object-fit:cover;" alt="@m.Caption" />
+                            }
+                            else if (m.MediaType == "video")
+                            {
+                                <video src="@m.Url" style="width:100%;height:120px;object-fit:cover;" muted></video>
+                            }
+                            else
+                            {
+                                <span style="font-size:2rem;">▶️ embed</span>
+                            }
+                        </div>
+                        <div class="p-2 d-flex justify-content-between align-items-center">
+                            <span class="small text-dim text-truncate" style="max-width:120px;">@(string.IsNullOrWhiteSpace(m.Caption) ? m.MediaType : m.Caption)</span>
+                            <form asp-action="DeleteMedia" method="post" data-confirm="Remove this media?">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@m.Id" />
+                                <input type="hidden" name="projectId" value="@Model.Id" />
+                                <button class="btn btn-sm btn-outline-danger">✕</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <h4 style="font-size:.9rem;color:#c8c8da;">Upload image / video</h4>
+                <form asp-action="UploadMedia" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="projectId" value="@Model.Id" />
+                    <input type="file" name="file" class="form-control mb-2" accept="image/*,video/*" required />
+                    <input type="text" name="caption" class="form-control mb-2" placeholder="Caption (optional)" />
+                    <button class="btn btn-accent btn-sm">Upload</button>
+                    <div class="small text-dim mt-1">Images: jpg, png, webp, gif · Video: mp4, webm, mov (max 150&nbsp;MB).</div>
+                </form>
+            </div>
+            <div class="col-md-6">
+                <h4 style="font-size:.9rem;color:#c8c8da;">Add a video link (YouTube / Vimeo)</h4>
+                <form asp-action="AddEmbed" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="projectId" value="@Model.Id" />
+                    <input type="url" name="embedUrl" class="form-control mb-2" placeholder="https://youtu.be/..." required />
+                    <input type="text" name="caption" class="form-control mb-2" placeholder="Caption (optional)" />
+                    <button class="btn btn-accent btn-sm">Add embed</button>
+                </form>
+            </div>
+        </div>
+    }
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

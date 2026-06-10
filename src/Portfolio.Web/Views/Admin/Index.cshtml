@@ -1,0 +1,173 @@
+﻿@model HomeViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h3 mb-1">Dashboard</h1>
+        <p class="text-dim mb-0">Welcome back, @User.Identity?.Name. Manage your portfolio content below.</p>
+    </div>
+</div>
+
+<!-- BIO -->
+<div class="admin-card">
+    <div class="card-head">
+        <h2>👤 Bio</h2>
+        <a class="btn btn-sm btn-accent" asp-action="EditBio">Edit Bio</a>
+    </div>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="fw-bold fs-5">@Model.Bio.FullName</div>
+            <div class="text-dim">@Model.Bio.Headline</div>
+            <div class="small mt-2 text-dim">@Model.Bio.Location · @Model.Bio.Email</div>
+        </div>
+    </div>
+</div>
+
+<!-- SERVICES -->
+<div class="admin-card">
+    <div class="card-head">
+        <h2>🧩 Services <span class="badge badge-soft">@Model.Services.Count</span></h2>
+        <a class="btn btn-sm btn-accent" asp-action="EditService">+ Add Service</a>
+    </div>
+    <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>#</th><th>Title</th><th>Description</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+            @foreach (var s in Model.Services)
+            {
+                <tr>
+                    <td>@s.SortOrder</td>
+                    <td>@s.Icon @s.Title</td>
+                    <td class="text-dim small">@(s.Description.Length > 80 ? s.Description[..80] + "…" : s.Description)</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-light" asp-action="EditService" asp-route-id="@s.Id">Edit</a>
+                        <form asp-action="DeleteService" method="post" class="d-inline" data-confirm="Delete this service?">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@s.Id" />
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- PROJECTS -->
+<div class="admin-card">
+    <div class="card-head">
+        <h2>🎮 Projects <span class="badge badge-soft">@Model.Projects.Count</span></h2>
+        <a class="btn btn-sm btn-accent" asp-action="EditProject">+ Add Project</a>
+    </div>
+    <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>#</th><th>Title</th><th>Category</th><th>Featured</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+            @foreach (var p in Model.Projects)
+            {
+                <tr>
+                    <td>@p.SortOrder</td>
+                    <td>@p.Title</td>
+                    <td class="text-dim">@p.Category</td>
+                    <td>@(p.IsFeatured ? "⭐" : "")</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-light" asp-action="EditProject" asp-route-id="@p.Id">Edit</a>
+                        <form asp-action="DeleteProject" method="post" class="d-inline" data-confirm="Delete this project?">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@p.Id" />
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- EXPERIENCE -->
+<div class="admin-card">
+    <div class="card-head">
+        <h2>💼 Experience <span class="badge badge-soft">@Model.Experiences.Count</span></h2>
+        <a class="btn btn-sm btn-accent" asp-action="EditExperience">+ Add Experience</a>
+    </div>
+    <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>#</th><th>Role</th><th>Company</th><th>Period</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+            @foreach (var e in Model.Experiences)
+            {
+                <tr>
+                    <td>@e.SortOrder</td>
+                    <td>@e.Role</td>
+                    <td class="text-dim">@e.Company</td>
+                    <td class="text-dim small">@e.Period</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-light" asp-action="EditExperience" asp-route-id="@e.Id">Edit</a>
+                        <form asp-action="DeleteExperience" method="post" class="d-inline" data-confirm="Delete this experience?">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@e.Id" />
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- SKILLS -->
+<div class="admin-card">
+    <div class="card-head">
+        <h2>🛠 Skills <span class="badge badge-soft">@Model.Skills.Count</span></h2>
+        <a class="btn btn-sm btn-accent" asp-action="EditSkill">+ Add Skill</a>
+    </div>
+    <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>#</th><th>Name</th><th>Category</th><th>Level</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+            @foreach (var s in Model.Skills)
+            {
+                <tr>
+                    <td>@s.SortOrder</td>
+                    <td>@s.Name</td>
+                    <td class="text-dim">@s.Category</td>
+                    <td>@s.Level%</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-light" asp-action="EditSkill" asp-route-id="@s.Id">Edit</a>
+                        <form asp-action="DeleteSkill" method="post" class="d-inline" data-confirm="Delete this skill?">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@s.Id" />
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- TESTIMONIALS -->
+<div class="admin-card">
+    <div class="card-head">
+        <h2>💬 Testimonials <span class="badge badge-soft">@Model.Testimonials.Count</span></h2>
+        <a class="btn btn-sm btn-accent" asp-action="EditTestimonial">+ Add Testimonial</a>
+    </div>
+    <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>#</th><th>Author</th><th>Quote</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+            @foreach (var t in Model.Testimonials)
+            {
+                <tr>
+                    <td>@t.SortOrder</td>
+                    <td>@t.Author<div class="small text-dim">@t.AuthorTitle</div></td>
+                    <td class="text-dim small">@(t.Quote.Length > 70 ? t.Quote[..70] + "…" : t.Quote)</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-light" asp-action="EditTestimonial" asp-route-id="@t.Id">Edit</a>
+                        <form asp-action="DeleteTestimonial" method="post" class="d-inline" data-confirm="Delete this testimonial?">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

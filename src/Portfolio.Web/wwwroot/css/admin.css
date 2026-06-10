@@ -1,0 +1,34 @@
+:root {
+    --a-bg: #0e0e16;
+    --a-surface: #181826;
+    --a-border: rgba(255,255,255,.1);
+    --a-accent: #7c5cff;
+}
+.admin-body { background: var(--a-bg); color: #e9e9f2; min-height: 100vh; }
+.admin-nav { background: #12121d; border-bottom: 1px solid var(--a-border); padding: 14px 0; margin-bottom: 8px; }
+.admin-brand { color: #fff; font-weight: 800; text-decoration: none; font-size: 1.1rem; }
+.admin-link { color: #b9b9cc; text-decoration: none; font-size: .92rem; }
+.admin-link:hover { color: #fff; }
+
+.admin-card { background: var(--a-surface); border: 1px solid var(--a-border); border-radius: 14px; padding: 22px; margin-bottom: 22px; }
+.admin-card h2 { font-size: 1.15rem; margin: 0; }
+.admin-card .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+
+.admin-body .form-label { color: #c8c8da; font-weight: 600; font-size: .88rem; }
+.admin-body .form-control, .admin-body .form-select {
+    background: #11111c; border: 1px solid var(--a-border); color: #e9e9f2;
+}
+.admin-body .form-control:focus, .admin-body .form-select:focus {
+    background: #11111c; color: #fff; border-color: var(--a-accent); box-shadow: 0 0 0 .2rem rgba(124,92,255,.25);
+}
+.admin-body .table { color: #e9e9f2; }
+.admin-body .table > :not(caption) > * > * { border-color: var(--a-border); }
+.admin-body .table-hover > tbody > tr:hover > * { background: rgba(124,92,255,.08); color:#fff; }
+
+.btn-accent { background: linear-gradient(120deg,#7c5cff,#18d8d8); border: 0; color: #06060c; font-weight: 700; }
+.btn-accent:hover { color:#06060c; opacity:.92; }
+
+.login-wrap { max-width: 400px; margin: 8vh auto; }
+.login-card { background: var(--a-surface); border: 1px solid var(--a-border); border-radius: 16px; padding: 36px; }
+.badge-soft { background: rgba(124,92,255,.15); color:#b9aaff; font-weight:600; }
+.text-dim { color:#9a9ab0; }

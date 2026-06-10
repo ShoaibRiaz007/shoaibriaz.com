@@ -1,0 +1,315 @@
+﻿@model HomeViewModel
+@{
+    Layout = null;
+    var bio = Model.Bio;
+    var name = string.IsNullOrWhiteSpace(bio.FullName) ? "Your Name" : bio.FullName;
+    var initials = string.Join("", name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => p[0]));
+    string[] AboutParas() => (bio.About ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+    var featured = Model.Projects.Where(p => p.IsFeatured).ToList();
+    var projects = featured.Count > 0 ? featured.Concat(Model.Projects.Where(p => !p.IsFeatured)).ToList() : Model.Projects;
+    var skillGroups = Model.Skills.GroupBy(s => string.IsNullOrWhiteSpace(s.Category) ? "Skills" : s.Category).ToList();
+    Func<Project, string> Slug = p => string.IsNullOrWhiteSpace(p.Slug) ? p.Id.ToString() : p.Slug;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@name — @bio.Headline</title>
+    <meta name="description" content="@bio.Headline. @bio.Tagline" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/portfolio.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="bg-glow"></div>
+
+    <!-- NAV -->
+    <header class="nav">
+        <div class="container inner">
+            <a href="#top" class="brand">@name.Split(' ')[0]<span class="dot">.</span></a>
+            <nav class="nav-links" id="navLinks">
+                <a href="#about">About</a>
+                <a href="#services">Services</a>
+                <a href="#experience">Experience</a>
+                <a href="/projects">Projects</a>
+                <a href="#skills">Skills</a>
+                <a href="#contact" class="nav-cta">Get in touch</a>
+            </nav>
+            <button class="nav-toggle" id="navToggle" aria-label="Menu">☰</button>
+        </div>
+    </header>
+
+    <main id="top">
+        <!-- HERO -->
+        <section class="hero">
+            <div class="container hero-grid">
+                <div class="reveal">
+                    <span class="badge-status"><span class="pulse"></span> Open to work · Remote / Hybrid / On-site</span>
+                    <h1>Hi, I'm <span class="grad-text">@name.Split(' ')[0]</span> —<br />I build backend &amp; real-time systems.</h1>
+                    <p class="role">@bio.Headline</p>
+                    <p class="tagline">@bio.Tagline</p>
+                    <div class="hero-actions">
+                        <a href="#projects" class="btn btn-primary">View my work →</a>
+                        @if (!string.IsNullOrWhiteSpace(bio.ResumeUrl))
+                        {
+                            <a href="@bio.ResumeUrl" class="btn btn-ghost" target="_blank">Download CV</a>
+                        }
+                        else
+                        {
+                            <a href="#contact" class="btn btn-ghost">Contact me</a>
+                        }
+                    </div>
+                    <div class="hero-socials">
+                        @if (!string.IsNullOrWhiteSpace(bio.LinkedIn)) { <a href="@bio.LinkedIn" target="_blank" title="LinkedIn">in</a> }
+                        @if (!string.IsNullOrWhiteSpace(bio.GitHub)) { <a href="@bio.GitHub" target="_blank" title="GitHub">GH</a> }
+                        @if (!string.IsNullOrWhiteSpace(bio.Email)) { <a href="mailto:@bio.Email" title="Email">@@</a> }
+                    </div>
+                </div>
+                <div class="reveal">
+                    <div class="hero-card">
+                        <div class="inner">
+                            <div class="avatar">
+                                @if (!string.IsNullOrWhiteSpace(bio.ProfileImageUrl))
+                                { <img src="@bio.ProfileImageUrl" alt="@name" /> }
+                                else { @initials.ToUpper() }
+                            </div>
+                            <h3>@name</h3>
+                            <div class="loc">📍 @bio.Location</div>
+                            <div class="hero-stats">
+                                <div>
+                                    <div class="num grad-text">@(string.IsNullOrWhiteSpace(bio.YearsExperience) ? "6+" : bio.YearsExperience)</div>
+                                    <div class="lbl">Years Exp</div>
+                                </div>
+                                <div>
+                                    <div class="num grad-text">@Model.Projects.Count</div>
+                                    <div class="lbl">Projects</div>
+                                </div>
+                                <div>
+                                    <div class="num grad-text">@Model.Experiences.Count</div>
+                                    <div class="lbl">Roles</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABOUT -->
+        <section id="about">
+            <div class="container">
+                <span class="eyebrow reveal">About me</span>
+                <h2 class="section-title reveal">Backend engineering meets<br /><span class="grad-text">interactive experiences.</span></h2>
+                <div class="about-grid">
+                    <div class="about-text reveal">
+                        @foreach (var p in AboutParas())
+                        {
+                            <p>@p</p>
+                        }
+                        <div class="core-strengths">
+                            <span class="chip">C#</span><span class="chip">ASP.NET Core</span><span class="chip">Web API</span>
+                            <span class="chip">EF Core</span><span class="chip">SignalR</span><span class="chip">Unity</span>
+                            <span class="chip">Firebase</span><span class="chip">Real-Time Systems</span><span class="chip">Clean Architecture</span>
+                        </div>
+                    </div>
+                    <div class="info-card reveal">
+                        <h4>Quick facts</h4>
+                        <div class="info-row"><span class="k">Name</span><span class="v">@name</span></div>
+                        <div class="info-row"><span class="k">Location</span><span class="v">@bio.Location</span></div>
+                        @if (!string.IsNullOrWhiteSpace(bio.Email)) { <div class="info-row"><span class="k">Email</span><span class="v">@bio.Email</span></div> }
+                        <div class="info-row"><span class="k">Experience</span><span class="v">@(string.IsNullOrWhiteSpace(bio.YearsExperience) ? "6+" : bio.YearsExperience) years</span></div>
+                        <div class="info-row"><span class="k">Availability</span><span class="v">Open to work</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SERVICES -->
+        @if (Model.Services.Any())
+        {
+            <section id="services">
+                <div class="container">
+                    <div class="center">
+                        <span class="eyebrow reveal">What I do</span>
+                        <h2 class="section-title reveal">Services &amp; expertise</h2>
+                        <p class="section-intro reveal">From backend APIs to production-ready interactive systems — here's how I can help.</p>
+                    </div>
+                    <div class="grid grid-3">
+                        @foreach (var s in Model.Services)
+                        {
+                            <div class="card reveal">
+                                <div class="icon">@(string.IsNullOrWhiteSpace(s.Icon) ? "⚙️" : s.Icon)</div>
+                                <h3>@s.Title</h3>
+                                <p>@s.Description</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+
+        <!-- EXPERIENCE -->
+        @if (Model.Experiences.Any())
+        {
+            <section id="experience">
+                <div class="container">
+                    <span class="eyebrow reveal">Career</span>
+                    <h2 class="section-title reveal">Experience</h2>
+                    <p class="section-intro reveal">6+ years building products across backend, games, and real-time systems.</p>
+                    <div class="timeline">
+                        @foreach (var e in Model.Experiences)
+                        {
+                            <div class="tl-item reveal">
+                                <div class="tl-head">
+                                    <div>
+                                        <span class="tl-role">@e.Role</span>
+                                        <span class="tl-company"> · @e.Company</span>
+                                    </div>
+                                    <span class="tl-period">@e.Period</span>
+                                </div>
+                                <div class="tl-loc">@e.EmploymentType @(string.IsNullOrWhiteSpace(e.Location) ? "" : "· " + e.Location)</div>
+                                <ul class="tl-desc">
+                                    @foreach (var line in (e.Description ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        <li>@line</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+
+        <!-- PROJECTS -->
+        @if (projects.Any())
+        {
+            <section id="projects">
+                <div class="container">
+                    <div class="center">
+                        <span class="eyebrow reveal">Portfolio</span>
+                        <h2 class="section-title reveal">Featured projects</h2>
+                        <p class="section-intro reveal">A selection of games, packages, and systems I've shipped to production.</p>
+                    </div>
+                    <div class="grid grid-3">
+                        @foreach (var p in projects)
+                        {
+                            <div class="card project-card reveal">
+                                <a href="/project/@Slug(p)" class="project-thumb" style="text-decoration:none;color:inherit;">
+                                    @if (!string.IsNullOrWhiteSpace(p.ImageUrl)) { <img src="@p.ImageUrl" alt="@p.Title" /> }
+                                    else { <span>🎮</span> }
+                                    @if (!string.IsNullOrWhiteSpace(p.Category)) { <span class="project-cat">@p.Category</span> }
+                                </a>
+                                <div class="project-body">
+                                    <h3><a href="/project/@Slug(p)" style="text-decoration:none;color:inherit;">@p.Title</a></h3>
+                                    <p>@(string.IsNullOrWhiteSpace(p.Summary) ? p.Description : p.Summary)</p>
+                                    @if (!string.IsNullOrWhiteSpace(p.TechStack))
+                                    {
+                                        <div class="tech-tags">
+                                            @foreach (var t in p.TechStack.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                            {
+                                                <span>@t.Trim()</span>
+                                            }
+                                        </div>
+                                    }
+                                    <div class="project-links">
+                                        <a href="/project/@Slug(p)">Case study →</a>
+                                        @if (!string.IsNullOrWhiteSpace(p.ProjectUrl)) { <a href="@p.ProjectUrl" target="_blank">Live ↗</a> }
+                                        @if (!string.IsNullOrWhiteSpace(p.GitHubUrl)) { <a href="@p.GitHubUrl" target="_blank">Code ↗</a> }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="center reveal" style="margin-top:46px;">
+                        <a href="/projects" class="btn btn-ghost">View all projects (@Model.TotalProjects) →</a>
+                    </div>
+                </div>
+            </section>
+        }
+
+        <!-- SKILLS -->
+        @if (Model.Skills.Any())
+        {
+            <section id="skills">
+                <div class="container">
+                    <div class="center">
+                        <span class="eyebrow reveal">Toolbox</span>
+                        <h2 class="section-title reveal">Skills &amp; technologies</h2>
+                    </div>
+                    <div class="grid grid-2">
+                        @foreach (var g in skillGroups)
+                        {
+                            <div class="skill-group reveal">
+                                <h4>@g.Key</h4>
+                                @foreach (var sk in g)
+                                {
+                                    <div class="skill">
+                                        <div class="skill-top"><span>@sk.Name</span><span class="pct">@sk.Level%</span></div>
+                                        <div class="skill-bar"><div class="skill-fill" data-level="@sk.Level"></div></div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+
+        <!-- TESTIMONIALS -->
+        @if (Model.Testimonials.Any())
+        {
+            <section id="testimonials">
+                <div class="container">
+                    <div class="center">
+                        <span class="eyebrow reveal">Kind words</span>
+                        <h2 class="section-title reveal">What people say</h2>
+                    </div>
+                    <div class="grid grid-2">
+                        @foreach (var t in Model.Testimonials)
+                        {
+                            <div class="quote-card reveal">
+                                <div class="mark">"</div>
+                                <p>@t.Quote</p>
+                                <div class="quote-author">
+                                    <div class="qa-avatar">@(string.Join("", t.Author.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpper())</div>
+                                    <div>
+                                        <div class="qa-name">@t.Author</div>
+                                        <div class="qa-title">@t.AuthorTitle</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+
+        <!-- CONTACT -->
+        <section id="contact">
+            <div class="container">
+                <div class="contact-card reveal">
+                    <h2>Let's build something <span class="grad-text">great together.</span></h2>
+                    <p>Open to backend, .NET, Unity systems, and real-time application roles. Reach out and let's talk.</p>
+                    <div class="contact-actions">
+                        @if (!string.IsNullOrWhiteSpace(bio.Email)) { <a href="mailto:@bio.Email" class="btn btn-primary">✉ @bio.Email</a> }
+                        @if (!string.IsNullOrWhiteSpace(bio.LinkedIn)) { <a href="@bio.LinkedIn" class="btn btn-ghost" target="_blank">LinkedIn</a> }
+                        @if (!string.IsNullOrWhiteSpace(bio.GitHub)) { <a href="@bio.GitHub" class="btn btn-ghost" target="_blank">GitHub</a> }
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container inner">
+            <div>© @DateTime.Now.Year @name. All rights reserved.</div>
+            <div><a href="/Account/Login">Admin</a></div>
+        </div>
+    </footer>
+
+    <script src="~/js/home.js" asp-append-version="true"></script>
+</body>
+</html>

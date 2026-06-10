@@ -1,0 +1,182 @@
+﻿@model ProjectDetailViewModel
+@{
+    Layout = null;
+    var project = Model.Project;
+    var bio = Model.Bio;
+    var more = Model.More;
+    var media = Model.Media;
+    var name = string.IsNullOrWhiteSpace(bio.FullName) ? "Portfolio" : bio.FullName;
+    var tech = (project.TechStack ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim()).ToList();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@project.Title — Case Study | @name</title>
+    <meta name="description" content="@(string.IsNullOrWhiteSpace(project.Summary) ? project.Description : project.Summary)" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/portfolio.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="bg-glow"></div>
+
+    <header class="nav">
+        <div class="container inner">
+            <a href="/" class="brand">@name.Split(' ')[0]<span class="dot">.</span></a>
+            <nav class="nav-links">
+                <a href="/#about">About</a>
+                <a href="/#services">Services</a>
+                <a href="/projects">Projects</a>
+                <a href="/#contact" class="nav-cta">Get in touch</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="cs-hero">
+            <div class="container">
+                <div class="breadcrumb-nav"><a href="/">Home</a> &nbsp;/&nbsp; <a href="/projects">Projects</a> &nbsp;/&nbsp; @project.Title</div>
+                @if (!string.IsNullOrWhiteSpace(project.Category)) { <span class="cs-cat">@project.Category</span> }
+                <h1 class="cs-title">@project.Title</h1>
+                @if (!string.IsNullOrWhiteSpace(project.Summary)) { <p class="cs-summary">@project.Summary</p> }
+                @if (media.Any())
+                {
+                    <div class="cs-slideshow" id="slideshow">
+                        <div class="slides">
+                            @for (var i = 0; i < media.Count; i++)
+                            {
+                                var m = media[i];
+                                <figure class="slide slide-@(m.MediaType)@(i == 0 ? " active" : "")">
+                                    @if (m.MediaType == "image")
+                                    {
+                                        <img src="@m.Url" alt="@m.Caption" loading="@(i == 0 ? "eager" : "lazy")" data-full="@m.Url" class="zoomable" />
+                                    }
+                                    else if (m.MediaType == "video")
+                                    {
+                                        <video src="@m.Url" controls preload="metadata" playsinline></video>
+                                    }
+                                    else
+                                    {
+                                        <div class="ratio"><iframe src="@m.Url" title="@m.Caption" allowfullscreen loading="lazy"></iframe></div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(m.Caption)) { <figcaption class="slide-cap">@m.Caption</figcaption> }
+                                </figure>
+                            }
+                            @if (media.Count > 1)
+                            {
+                                <button class="slide-nav prev" id="slidePrev" type="button" aria-label="Previous">‹</button>
+                                <button class="slide-nav next" id="slideNext" type="button" aria-label="Next">›</button>
+                                <div class="slide-counter"><span id="slideCur">1</span> / @media.Count</div>
+                                <div class="slide-dots" id="slideDots">
+                                    @for (var i = 0; i < media.Count; i++)
+                                    {
+                                        <button class="dot@(i == 0 ? " active" : "")" type="button" data-go="@i" aria-label="Go to slide @(i + 1)"></button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="cs-banner">
+                        @if (!string.IsNullOrWhiteSpace(project.ImageUrl)) { <img src="@project.ImageUrl" alt="@project.Title" /> }
+                        else { <span>🎮</span> }
+                    </div>
+                }
+            </div>
+        </section>
+
+        <div class="container">
+            <div class="cs-layout">
+                <div>
+                    <div class="cs-block">
+                        <h2><span class="bar"></span>Overview</h2>
+                        <p>@project.Description</p>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(project.Challenge))
+                    {
+                        <div class="cs-block">
+                            <h2><span class="bar"></span>The Challenge</h2>
+                            @foreach (var line in project.Challenge.Split('\n', StringSplitOptions.RemoveEmptyEntries)) { <p>@line</p> }
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(project.Solution))
+                    {
+                        <div class="cs-block">
+                            <h2><span class="bar"></span>The Solution</h2>
+                            @foreach (var line in project.Solution.Split('\n', StringSplitOptions.RemoveEmptyEntries)) { <p>@line</p> }
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(project.Outcome))
+                    {
+                        <div class="cs-block">
+                            <h2><span class="bar"></span>The Outcome</h2>
+                            @foreach (var line in project.Outcome.Split('\n', StringSplitOptions.RemoveEmptyEntries)) { <p>@line</p> }
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(project.MyRole))
+                    {
+                        <div class="cs-block">
+                            <h2><span class="bar"></span>My Role</h2>
+                            <p>@project.MyRole</p>
+                        </div>
+                    }
+                </div>
+
+                <aside class="cs-sidebar">
+                    <h4>Project details</h4>
+                    @if (!string.IsNullOrWhiteSpace(project.Category)) { <div class="cs-meta-row"><div class="k">Category</div><div class="v">@project.Category</div></div> }
+                    @if (!string.IsNullOrWhiteSpace(project.Timeline)) { <div class="cs-meta-row"><div class="k">Timeline</div><div class="v">@project.Timeline</div></div> }
+                    @if (tech.Any())
+                    {
+                        <div class="cs-meta-row">
+                            <div class="k">Tech stack</div>
+                            <div class="tech-tags">@foreach (var t in tech) { <span>@t</span> }</div>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(project.ProjectUrl)) { <a href="@project.ProjectUrl" target="_blank" class="btn btn-primary">View live ↗</a> }
+                    @if (!string.IsNullOrWhiteSpace(project.GitHubUrl)) { <a href="@project.GitHubUrl" target="_blank" class="btn btn-ghost">View code ↗</a> }
+                </aside>
+            </div>
+
+            @if (more.Any())
+            {
+                <section class="more-work">
+                    <h2>More work</h2>
+                    <div class="grid grid-3">
+                        @foreach (var p in more)
+                        {
+                            <a class="card project-card" href="/project/@p.Slug" style="display:block;">
+                                <div class="project-thumb">
+                                    @if (!string.IsNullOrWhiteSpace(p.ImageUrl)) { <img src="@p.ImageUrl" alt="@p.Title" /> }
+                                    else { <span>🎮</span> }
+                                    @if (!string.IsNullOrWhiteSpace(p.Category)) { <span class="project-cat">@p.Category</span> }
+                                </div>
+                                <div class="project-body">
+                                    <h3>@p.Title</h3>
+                                    <p>@(string.IsNullOrWhiteSpace(p.Summary) ? p.Description : p.Summary)</p>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container inner">
+            <div>© @DateTime.Now.Year @name. All rights reserved.</div>
+            <div><a href="/projects">← Back to projects</a></div>
+        </div>
+    </footer>
+
+    <div class="lightbox" id="lightbox"><span class="close">&times;</span><img id="lightboxImg" src="" alt="" /></div>
+    <script src="~/js/project-detail.js" asp-append-version="true"></script>
+</body>
+</html>

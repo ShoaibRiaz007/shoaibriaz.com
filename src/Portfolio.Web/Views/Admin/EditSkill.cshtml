@@ -1,0 +1,36 @@
+@model Skill
+@{
+    ViewData["Title"] = Model.Id == 0 ? "Add Skill" : "Edit Skill";
+}
+<div class="admin-card" style="max-width:560px;">
+    <div class="card-head"><h2>@ViewData["Title"]</h2><a class="admin-link" asp-action="Index">← Back</a></div>
+    <form asp-action="EditSkill" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+        <input type="hidden" asp-for="Id" />
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Category" class="form-label"></label>
+                <input asp-for="Category" class="form-control" placeholder="Backend / Game Dev" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Level" class="form-label"></label>
+                <input asp-for="Level" type="number" min="0" max="100" class="form-control" />
+                <span asp-validation-for="Level" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="SortOrder" class="form-label"></label>
+                <input asp-for="SortOrder" class="form-control" />
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-accent">Save</button>
+            <a class="btn btn-outline-light" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

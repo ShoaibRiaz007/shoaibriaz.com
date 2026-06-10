@@ -1,0 +1,72 @@
+@model Bio
+@{
+    ViewData["Title"] = "Edit Bio";
+}
+<div class="admin-card" style="max-width:820px;">
+    <div class="card-head"><h2>Edit Bio</h2><a class="admin-link" asp-action="Index">← Back</a></div>
+    <form asp-action="EditBio" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+        <input type="hidden" asp-for="Id" />
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="FullName" class="form-label"></label>
+                <input asp-for="FullName" class="form-control" />
+                <span asp-validation-for="FullName" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Headline" class="form-label"></label>
+                <input asp-for="Headline" class="form-control" />
+            </div>
+            <div class="col-12">
+                <label asp-for="Tagline" class="form-label"></label>
+                <textarea asp-for="Tagline" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+                <label asp-for="About" class="form-label"></label>
+                <textarea asp-for="About" class="form-control" rows="7"></textarea>
+                <div class="small text-dim">Separate paragraphs with new lines.</div>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Location" class="form-label"></label>
+                <input asp-for="Location" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="YearsExperience" class="form-label"></label>
+                <input asp-for="YearsExperience" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Phone" class="form-label"></label>
+                <input asp-for="Phone" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="LinkedIn" class="form-label"></label>
+                <input asp-for="LinkedIn" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="GitHub" class="form-label"></label>
+                <input asp-for="GitHub" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Website" class="form-label"></label>
+                <input asp-for="Website" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="ResumeUrl" class="form-label"></label>
+                <input asp-for="ResumeUrl" class="form-control" />
+            </div>
+            <div class="col-12">
+                <label asp-for="ProfileImageUrl" class="form-label"></label>
+                <input asp-for="ProfileImageUrl" class="form-control" placeholder="https://..." />
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-accent">Save Bio</button>
+            <a class="btn btn-outline-light" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
