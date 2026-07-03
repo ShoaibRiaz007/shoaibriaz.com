@@ -22,6 +22,9 @@ public class EfRepository<T> : IRepository<T> where T : class
     public async Task<IReadOnlyList<T>> ListAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default)
         => await _set.AsNoTracking().Where(predicate).ToListAsync(ct);
 
+    public async Task<IReadOnlyList<T>> ListAsync(Expression<Func<T, bool>> predicate, Func<IQueryable<T>, IQueryable<T>> shape, CancellationToken ct = default)
+        => await shape(_set.AsNoTracking().Where(predicate)).ToListAsync(ct);
+
     public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default)
         => await _set.AsNoTracking().FirstOrDefaultAsync(predicate, ct);
 
@@ -48,5 +51,11 @@ public class EfRepository<T> : IRepository<T> where T : class
     {
         _set.Remove(entity);
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> MaxAsync(Expression<Func<T, bool>> predicate, Expression<Func<T, int>> selector, CancellationToken ct = default)
+    {
+        var query = _set.AsNoTracking().Where(predicate).Select(selector);
+        return await query.AnyAsync(ct) ? await query.MaxAsync(ct) : 0;
     }
 }

@@ -20,7 +20,45 @@ public class DataSeeder : IDataSeeder
         _db = db; _hasher = hasher; _admin = admin;
     }
 
+    // Arbitrary fixed key for the advisory lock namespace used to serialize migrate+seed across
+    // concurrently-starting instances. Any int64 works as long as it's stable across deployments.
+    private const long MigrationLockKey = 851_203_411;
+
     public async Task SeedAsync(CancellationToken ct = default)
+    {
+        // Postgres advisory lock, held for the connection's lifetime: if two instances start at once
+        // against the same database, the second blocks here instead of racing the first on DDL/seed
+        // inserts. Session-scoped, so it's automatically released when the connection closes even on
+        // a crash.
+        var connection = _db.Database.GetDbConnection();
+        await connection.OpenAsync(ct);
+        try
+        {
+            await using (var lockCmd = connection.CreateCommand())
+            {
+                lockCmd.CommandText = "SELECT pg_advisory_lock(@key)";
+                var param = lockCmd.CreateParameter();
+                param.ParameterName = "key";
+                param.Value = MigrationLockKey;
+                lockCmd.Parameters.Add(param);
+                await lockCmd.ExecuteNonQueryAsync(ct);
+            }
+
+            await SeedInternalAsync(ct);
+        }
+        finally
+        {
+            await using var unlockCmd = connection.CreateCommand();
+            unlockCmd.CommandText = "SELECT pg_advisory_unlock(@key)";
+            var param = unlockCmd.CreateParameter();
+            param.ParameterName = "key";
+            param.Value = MigrationLockKey;
+            unlockCmd.Parameters.Add(param);
+            await unlockCmd.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+    }
+
+    private async Task SeedInternalAsync(CancellationToken ct)
     {
         await _db.Database.MigrateAsync(ct);
 

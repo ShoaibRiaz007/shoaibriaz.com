@@ -1,5 +1,8 @@
 <Solution>
   <Project Path="src/Portfolio.Domain/Portfolio.Domain.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/Portfolio.Tests/Portfolio.Tests.csproj" />
+  </Folder>
   <Project Path="src/Portfolio.Application/Portfolio.Application.csproj" />
   <Project Path="src/Portfolio.Infrastructure/Portfolio.Infrastructure.csproj" />
   <Project Path="src/Portfolio.Web/Portfolio.Web.csproj" />

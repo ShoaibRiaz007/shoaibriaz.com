@@ -2,8 +2,10 @@ using Portfolio.Application.Abstractions;
 
 namespace Portfolio.Infrastructure.Storage;
 
-/// <summary>Configuration for the local file store. Supplied by the composition root (Web).</summary>
-public record FileStorageOptions(string RootPath, string PublicPrefix);
+/// <summary>Configuration for the local file store. Supplied by the composition root (Web).
+/// <paramref name="MaxTotalBytes"/> bounds the uploads directory's total size so repeated uploads
+/// can't exhaust disk space; default 2 GiB.</summary>
+public record FileStorageOptions(string RootPath, string PublicPrefix, long MaxTotalBytes = 2L * 1024 * 1024 * 1024);
 
 /// <summary>Saves uploads to a local directory and exposes them under a public URL prefix.</summary>
 public class LocalFileStorage : IFileStorage
@@ -15,6 +17,12 @@ public class LocalFileStorage : IFileStorage
     public async Task<string> SaveAsync(Stream content, string originalFileName, CancellationToken ct = default)
     {
         Directory.CreateDirectory(_options.RootPath);
+
+        var currentSize = new DirectoryInfo(_options.RootPath).EnumerateFiles().Sum(f => f.Length);
+        if (currentSize + content.Length > _options.MaxTotalBytes)
+            throw new InvalidOperationException(
+                $"Uploads storage quota exceeded ({_options.MaxTotalBytes / (1024 * 1024)} MB). Delete unused media before uploading more.");
+
         var ext = Path.GetExtension(originalFileName).ToLowerInvariant();
         var fileName = $"{Guid.NewGuid():N}{ext}";
         var fullPath = Path.Combine(_options.RootPath, fileName);

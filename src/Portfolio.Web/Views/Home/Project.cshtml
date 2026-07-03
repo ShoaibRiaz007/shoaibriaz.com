@@ -7,6 +7,7 @@
     var media = Model.Media;
     var name = string.IsNullOrWhiteSpace(bio.FullName) ? "Portfolio" : bio.FullName;
     var tech = (project.TechStack ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim()).ToList();
+    Func<Project, string> Slug = p => string.IsNullOrWhiteSpace(p.Slug) ? p.Id.ToString() : p.Slug;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -151,7 +152,7 @@
                     <div class="grid grid-3">
                         @foreach (var p in more)
                         {
-                            <a class="card project-card" href="/project/@p.Slug" style="display:block;">
+                            <a class="card project-card" href="/project/@Slug(p)" style="display:block;">
                                 <div class="project-thumb">
                                     @if (!string.IsNullOrWhiteSpace(p.ImageUrl)) { <img src="@p.ImageUrl" alt="@p.Title" /> }
                                     else { <span>🎮</span> }

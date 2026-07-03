@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
+        // Singleton is safe: PasswordHasher holds no mutable state, only stateless PBKDF2 calls.
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton(adminSeedOptions);
         services.AddScoped<IDataSeeder, DataSeeder>();

@@ -21,11 +21,15 @@ public class PasswordHasher : IPasswordHasher
     public bool Verify(string password, string storedHash)
     {
         var parts = storedHash.Split('.', 3);
-        if (parts.Length != 3) return false;
+        if (parts.Length != 3 || !int.TryParse(parts[0], out var iterations)) return false;
 
-        int iterations = int.Parse(parts[0]);
-        byte[] salt = Convert.FromBase64String(parts[1]);
-        byte[] expected = Convert.FromBase64String(parts[2]);
+        byte[] salt, expected;
+        try
+        {
+            salt = Convert.FromBase64String(parts[1]);
+            expected = Convert.FromBase64String(parts[2]);
+        }
+        catch (FormatException) { return false; }
 
         byte[] actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, Algo, expected.Length);
         return CryptographicOperations.FixedTimeEquals(actual, expected);

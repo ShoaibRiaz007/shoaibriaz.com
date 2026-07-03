@@ -87,12 +87,19 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 
 // ---- Brute-force protection on the login endpoint ----
+// Partitioned on the raw socket IP (stashed in HttpContext.Items by CaptureRawRemoteIp below,
+// *before* UseForwardedHeaders overwrites Connection.RemoteIpAddress with the client-supplied
+// X-Forwarded-For value). KnownIPNetworks/KnownProxies are cleared further down because the
+// platform's proxy IP isn't static, which means a direct client can put anything it wants in
+// X-Forwarded-For — partitioning on the post-forwarding IP would let an attacker get a fresh
+// rate-limit bucket on every request just by rotating that header.
+const string RawIpItemKey = "RawRemoteIp";
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("login", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            partitionKey: httpContext.Items[RawIpItemKey] as string ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 5,
@@ -110,6 +117,12 @@ builder.Services.AddOutputCache(options =>
 
 var app = builder.Build();
 
+// Stash the true socket IP before UseForwardedHeaders replaces it with the (spoofable) forwarded value.
+app.Use(async (context, next) =>
+{
+    context.Items[RawIpItemKey] = context.Connection.RemoteIpAddress?.ToString();
+    await next();
+});
 app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())

@@ -60,10 +60,12 @@ public class CloudinaryFileStorage : IFileStorage
         idParts[^1] = Path.GetFileNameWithoutExtension(idParts[^1]); // drop extension from final segment
         var publicId = string.Join('/', idParts);
 
-        await _cloudinary.DeleteResourcesAsync(new DelResParams
+        var result = await _cloudinary.DeleteResourcesAsync(new DelResParams
         {
             PublicIds = new List<string> { publicId },
             ResourceType = resourceType
         }, ct);
+        if (result.Error is not null)
+            throw new InvalidOperationException($"Cloudinary delete failed: {result.Error.Message}");
     }
 }

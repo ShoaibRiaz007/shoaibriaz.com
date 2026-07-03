@@ -56,18 +56,20 @@ public class PublicContentFacade : IPublicContentFacade
 
     public async Task<ProjectDetail?> GetProjectDetailAsync(string slug, CancellationToken ct = default)
     {
+        // Slugs are normalized to lowercase on save (AdminContentFacade.SaveProjectAsync / SlugGenerator),
+        // so a direct comparison is enough and avoids a non-sargable ToLower() in the generated SQL.
         var lowered = slug.ToLowerInvariant();
-        var project = await _projects.FirstOrDefaultAsync(p => p.Slug.ToLower() == lowered, ct);
+        var project = await _projects.FirstOrDefaultAsync(p => p.Slug == lowered, ct);
         if (project is null) return null;
 
         var media = (await _media.ListAsync(m => m.ProjectId == project.Id, ct))
             .OrderBy(m => m.SortOrder)
             .ToList();
 
-        var more = (await _projects.ListAsync(p => p.Id != project.Id, ct))
-            .OrderByDescending(p => p.IsFeatured).ThenBy(p => p.SortOrder)
-            .Take(3)
-            .ToList();
+        var more = await _projects.ListAsync(
+            p => p.Id != project.Id,
+            q => q.OrderByDescending(p => p.IsFeatured).ThenBy(p => p.SortOrder).Take(3),
+            ct);
 
         var bio = (await _bios.ListAsync(ct)).FirstOrDefault() ?? new Bio();
         return new ProjectDetail(project, media, more, bio);

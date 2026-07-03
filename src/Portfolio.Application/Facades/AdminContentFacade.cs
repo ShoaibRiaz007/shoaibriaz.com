@@ -46,6 +46,12 @@ public class AdminContentFacade : IAdminContentFacade
 
     public async Task SaveBioAsync(Bio model, CancellationToken ct = default)
     {
+        model.LinkedIn = UrlValidator.SanitizeOrEmpty(model.LinkedIn);
+        model.GitHub = UrlValidator.SanitizeOrEmpty(model.GitHub);
+        model.Website = UrlValidator.SanitizeOrEmpty(model.Website);
+        model.ResumeUrl = UrlValidator.SanitizeOrEmpty(model.ResumeUrl);
+        model.ProfileImageUrl = UrlValidator.SanitizeOrEmpty(model.ProfileImageUrl);
+
         var bio = (await _bios.ListAsync(ct)).FirstOrDefault();
         if (bio is null) { await _bios.AddAsync(model, ct); return; }
         bio.FullName = model.FullName; bio.Headline = model.Headline; bio.Tagline = model.Tagline;
@@ -67,20 +73,32 @@ public class AdminContentFacade : IAdminContentFacade
     public Task<Project?> GetProjectAsync(int id, CancellationToken ct = default) => _projects.GetByIdAsync(id, ct);
     public async Task SaveProjectAsync(Project p, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(p.Slug)) p.Slug = SlugGenerator.Generate(p.Title);
+        p.Slug = string.IsNullOrWhiteSpace(p.Slug) ? SlugGenerator.Generate(p.Title) : p.Slug.ToLowerInvariant();
         p.Slug = await EnsureUniqueSlugAsync(p.Slug, p.Id, ct);
+        p.ProjectUrl = UrlValidator.SanitizeOrEmpty(p.ProjectUrl);
+        p.GitHubUrl = UrlValidator.SanitizeOrEmpty(p.GitHubUrl);
+        p.ImageUrl = UrlValidator.SanitizeOrEmpty(p.ImageUrl);
         if (p.Id == 0) await _projects.AddAsync(p, ct); else await _projects.UpdateAsync(p, ct);
     }
     public async Task DeleteProjectAsync(int id, CancellationToken ct = default)
     { var p = await _projects.GetByIdAsync(id, ct); if (p is not null) await _projects.RemoveAsync(p, ct); }
+
+    private const int MaxSlugSuffixAttempts = 1000;
 
     /// <summary>Slugs carry a unique index; suffix duplicates ("foo-2") rather than failing the save.</summary>
     private async Task<string> EnsureUniqueSlugAsync(string slug, int ownId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug)) slug = "project";
         var candidate = slug;
-        for (var i = 2; await _projects.AnyAsync(x => x.Slug == candidate && x.Id != ownId, ct); i++)
-            candidate = $"{slug}-{i}";
+        var i = 2;
+        while (await _projects.AnyAsync(x => x.Slug == candidate && x.Id != ownId, ct))
+        {
+            if (i > MaxSlugSuffixAttempts)
+                candidate = $"{slug}-{Guid.NewGuid():N}";
+            else
+                candidate = $"{slug}-{i}";
+            i++;
+        }
         return candidate;
     }
 
@@ -151,11 +169,20 @@ public class AdminContentFacade : IAdminContentFacade
             else
             {
                 stream.Position = 0;
-                url = await _files.SaveAsync(stream, fileName, ct);
+                try
+                {
+                    url = await _files.SaveAsync(stream, fileName, ct);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    // Storage quota (or other storage-level) rejection — surface as a normal failure
+                    // result rather than a 500, matching every other validation failure in this method.
+                    return new(false, ex.Message);
+                }
                 message = "Media uploaded.";
             }
 
-            var nextOrder = (await GetProjectMediaAsync(projectId, ct)).Select(m => m.SortOrder).DefaultIfEmpty(0).Max() + 1;
+            var nextOrder = await _media.MaxAsync(m => m.ProjectId == projectId, m => m.SortOrder, ct) + 1;
 
             // Media row + project cover update commit or roll back together.
             await _uow.ExecuteAsync(async token =>
@@ -189,7 +216,7 @@ public class AdminContentFacade : IAdminContentFacade
         var normalized = EmbedUrlNormalizer.Normalize(embedUrl);
         if (normalized is null) return new(false, "Could not parse that video URL. Paste a YouTube or Vimeo link.");
 
-        var nextOrder = (await GetProjectMediaAsync(projectId, ct)).Select(m => m.SortOrder).DefaultIfEmpty(0).Max() + 1;
+        var nextOrder = await _media.MaxAsync(m => m.ProjectId == projectId, m => m.SortOrder, ct) + 1;
         await _media.AddAsync(new ProjectMedia
         {
             ProjectId = projectId, MediaType = "embed", Url = normalized,
