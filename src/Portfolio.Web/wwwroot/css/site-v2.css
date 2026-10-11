@@ -24,6 +24,7 @@
     --radius: 14px;
     --radius-sm: 8px;
     --header-h: 72px;
+    --header-h-min: 58px;   /* compact header, once the page has scrolled */
     --max: 1160px;
     color-scheme: dark;
 }
@@ -132,7 +133,7 @@ ul, ol { margin: 0; padding: 0; }
 }
 /* Compact once the page scrolls (class set by public.js). */
 .site-header.scrolled { box-shadow: 0 6px 24px rgba(0, 0, 0, .12); }
-.site-header.scrolled .header-inner { height: 58px; }
+.site-header.scrolled .header-inner { height: var(--header-h-min); }
 .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
 .logo-mark {
     display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 9px;
@@ -226,7 +227,7 @@ main:focus { outline: none; }
 .btn-ghost { border-color: var(--border-strong); color: var(--text); background: transparent; }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 .btn-sm { min-height: 36px; padding: 0 14px; font-size: 13px; }
-.btn-link { color: var(--text); padding: 0 8px; }
+.btn-link { color: var(--text); padding: 0 8px; background: transparent; }
 .btn-link:hover { color: var(--accent); }
 .btn svg { width: 16px; height: 16px; }
 .chip {
@@ -249,11 +250,10 @@ main:focus { outline: none; }
 
 /* ---------- Hero ---------- */
 .hero { position: relative; padding: 104px 0 64px; isolation: isolate; }
-/* Cursor spotlight: public.js moves --mx/--my; without it the glow sits top-left. */
-[data-spotlight] { --mx: 20%; --my: 20%; }
+/* Soft light behind the hero; it follows the pointer (motion.css, data-pointer="spotlight"). */
 .hero::before {
     content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-    background: radial-gradient(520px circle at var(--mx) var(--my), var(--accent-soft), transparent 60%);
+    background: radial-gradient(520px circle at 20% 20%, var(--accent-soft), transparent 60%);
 }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 56px; align-items: center; }
 .status {
@@ -261,13 +261,18 @@ main:focus { outline: none; }
     color: var(--accent); background: var(--accent-soft); padding: 7px 13px; border-radius: 999px;
 }
 .status-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
-.status-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-out infinite; }
-@keyframes pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(3.2); opacity: 0; } }
+.status-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--accent); opacity: 0; }
 .hero h1 { font-size: clamp(44px, 8vw, 88px); font-weight: 900; letter-spacing: -.04em; margin: 22px 0 14px; line-height: 1.02; }
 .hero h1 .word { display: inline-block; margin-right: .22em; }
 .hero h1 .word:last-child {
     margin-right: 0;
-    background: linear-gradient(100deg, var(--text) 10%, var(--accent) 60%, var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    /* The name's colours twice over with a highlight where the halves meet, shown from the second half. The sheen
+       (motion.css) moves from one half to the other, so the name looks the same before and after. */
+    background: linear-gradient(100deg,
+        var(--text) 5%, var(--accent) 30%, var(--accent-2) 46%,
+        color-mix(in srgb, var(--accent-2) 30%, #fff) 50%,
+        var(--text) 55%, var(--accent) 80%, var(--accent-2) 96%) 100% 0 / 200% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .hero .headline { font-size: clamp(18px, 2.4vw, 24px); font-weight: 700; color: var(--text); }
 /* Rotating headline word: every phrase is stacked in one grid cell (so the widest sets the width and nothing
@@ -297,14 +302,11 @@ main:focus { outline: none; }
 .avatar-wrap::before {
     content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1;
     background: conic-gradient(from var(--ring, 0deg), var(--accent), var(--accent-2), var(--accent-soft), var(--accent-2), var(--accent));
-    animation: ring 8s linear infinite;
 }
 .avatar-wrap::after {
     content: ""; position: absolute; inset: -30px; border-radius: 50%; z-index: -2;
     background: radial-gradient(circle, var(--glow-1), transparent 70%); filter: blur(10px);
 }
-@property --ring { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-@keyframes ring { to { --ring: 360deg; } }
 .avatar {
     width: 260px; height: 260px; border-radius: 30px; object-fit: cover; display: block;
     background: var(--bg-raised); box-shadow: var(--shadow);
@@ -313,13 +315,6 @@ main:focus { outline: none; }
     display: grid; place-items: center; font-size: 72px; font-weight: 900; color: var(--accent);
     background: linear-gradient(140deg, var(--accent-soft), var(--bg-raised));
 }
-/* Hero entrance: each piece rises in turn (--i sets the order). Content is visible if animations are off. */
-@media (prefers-reduced-motion: no-preference) {
-    .hero-in, .hero h1 .word { animation: rise .7s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 90ms + 60ms); }
-}
-/* Starts at .01, not 0: Chrome doesn't count fully transparent text as painted, so 0 would push back the
-   Largest Contentful Paint until the animation ends. */
-@keyframes rise { from { opacity: .01; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 @media (max-width: 860px) {
     .hero { padding: 48px 0 40px; }
     /* A smaller portrait sits above the name. */
@@ -514,7 +509,7 @@ details.more[open] .when-open { display: inline; }
 .empty svg { width: 36px; height: 36px; color: var(--text-faint); margin-bottom: 6px; }
 .empty strong { color: var(--text); }
 .empty .btn { margin-top: 10px; }
-.empty:not([hidden]), .project-card.pop { animation: fade-up .28s ease both; }
+.empty:not([hidden]) { animation: fade-up .28s ease both; }
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (max-width: 640px) { .search-wrap { flex: 1 1 100%; } }
 
@@ -592,18 +587,18 @@ details.more[open] .when-open { display: inline; }
 .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
 .footer-links a { text-decoration: none; }
 .footer-links a:hover { color: var(--accent); }
+.motion-toggle {
+    display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: inherit; font-size: 14px;
+}
+.motion-toggle::before {
+    content: ""; width: 28px; height: 16px; border-radius: 999px; background: var(--accent);
+    box-shadow: inset 0 0 0 2px var(--accent); transition: background .2s;
+}
+/* A small switch: filled with the knob right while animations are on, hollow with the knob left when off. */
+.motion-toggle[aria-pressed="true"]::before { background: radial-gradient(circle at 20px 50%, var(--accent-ink) 5px, transparent 5.5px), var(--accent); }
+.motion-toggle[aria-pressed="false"]::before { background: radial-gradient(circle at 8px 50%, var(--accent) 5px, transparent 5.5px), var(--bg-sunken); }
+.motion-toggle:hover { color: var(--accent); }
 
-/* ---------- Reveal ----------
-   Visible by default. Content is only held back when theme.js has opted in (reveal-on: JS running, motion
-   welcome) and public.js hasn't revealed it yet; theme.js drops the opt-in if public.js never arrives. */
-@media (prefers-reduced-motion: no-preference) {
-    .reveal-on .reveal { transition: opacity .55s ease, transform .55s ease; }
-    .reveal-on .reveal:not(.in) { opacity: 0; transform: translateY(14px); }
-}
-@media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    *, *::before, *::after { transition: none !important; animation: none !important; }
-}
 
 /* ---------- CV (screen + print) ---------- */
 .cv { max-width: 860px; margin: 40px auto; padding: 48px; }
@@ -626,7 +621,6 @@ details.more[open] .when-open { display: inline; }
     :root, :root[data-theme] { --bg: #fff; --bg-raised: #fff; --text: #111; --text-dim: #333; --text-faint: #555; --border: #ccc; --accent: #0b6e55; color-scheme: light; }
     body { font-size: 11pt; }
     .site-header, .site-footer, .bg-grid, .bg-glow, .cv-actions, .skip-link, .to-top { display: none !important; }
-    .reveal { opacity: 1 !important; transform: none !important; }
     /* Gradient text is painted as a background, which printing leaves out. */
     .hero h1 .word, .hero .headline .rotator > span, .proof-item strong { background: none !important; color: var(--text) !important; }
     .cv { margin: 0; padding: 0; border: 0; box-shadow: none; max-width: none; }
@@ -702,51 +696,21 @@ details.more[open] .when-open { display: inline; }
 }
 .marquee-track {
     list-style: none; display: flex; flex-shrink: 0; gap: 44px; padding-right: 44px; min-width: 100%; justify-content: space-around;
-    animation: marquee 40s linear infinite;
 }
 .marquee-track li { white-space: nowrap; font-size: 14px; font-weight: 700; letter-spacing: .06em; color: var(--text-faint); }
 .marquee-track li::before { content: "◆"; margin-right: 44px; font-size: 8px; vertical-align: 3px; color: var(--accent); opacity: .6; }
-.marquee:hover .marquee-track, .marquee-wrap.paused .marquee-track { animation-play-state: paused; }
 .marquee-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; }
 .marquee-toggle svg { width: 14px; height: 14px; }
 .marquee-toggle .icon-play, .marquee-wrap.paused .marquee-toggle .icon-pause { display: none; }
 .marquee-wrap.paused .marquee-toggle .icon-play { display: block; }
-@keyframes marquee { to { transform: translateX(-100%); } }
-/* No motion: one static, wrapping row. */
-@media (prefers-reduced-motion: reduce) {
-    .marquee { mask-image: none; }
-    .marquee-track { flex-wrap: wrap; justify-content: center; gap: 10px 28px; min-width: 0; padding: 0 16px; flex-shrink: 1; }
-    .marquee-track[aria-hidden] { display: none; }
-    .marquee-track li::before { margin-right: 10px; }
-    .marquee-toggle { display: none; }
-}
 
-/* ---------- Home: featured cards (pointer glow + slight tilt, set by public.js) ---------- */
-.featured-grid .project-card { --gx: 50%; --gy: 50%; --rx: 0deg; --ry: 0deg; transform-style: preserve-3d; }
-.featured-grid .project-card::before {
-    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; opacity: 0; transition: opacity .3s;
-    background: radial-gradient(360px circle at var(--gx) var(--gy), color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%);
-}
-.featured-grid .project-card:hover::before { opacity: 1; }
-.featured-grid .project-card.tilting { transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-3px); transition: transform .08s linear, box-shadow .2s, border-color .2s; }
+/* ---------- Hover details ---------- */
 .project-media img, .project-media .art { transition: transform .5s cubic-bezier(.2, .7, .2, 1); }
 .project-card:hover .project-media img, .project-card:hover .project-media .art { transform: scale(1.04); }
 .arrow-link span { display: inline-block; transition: transform .2s; }
 .arrow-link:hover span { transform: translateX(4px); }
 .btn svg { transition: transform .2s; }
 .btn-primary:hover svg { transform: translateY(2px); }
-
-/* ---------- Home: experience line draws in as you scroll (where supported) ---------- */
-@supports (animation-timeline: view()) {
-    @media (prefers-reduced-motion: no-preference) {
-        .roles.multi { border-left-color: transparent; }
-        .roles.multi::before {
-            content: ""; position: absolute; left: -2px; top: 0; bottom: 0; width: 2px; background: linear-gradient(var(--accent), var(--border));
-            transform-origin: top; animation: draw linear both; animation-timeline: view(); animation-range: entry 10% cover 50%;
-        }
-    }
-}
-@keyframes draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 
 /* ---------- Home: island teaser ---------- */
 .island-section { padding-top: 24px; border-top: 0 !important; }
@@ -765,32 +729,11 @@ details.more[open] .when-open { display: inline; }
 .ia-tree { fill: none; stroke: var(--accent-strong); stroke-width: 5; stroke-linecap: round; }
 .ia-wave { fill: color-mix(in srgb, var(--accent-2) 35%, var(--bg-raised)); }
 .ia-wave-1 { fill: color-mix(in srgb, var(--accent-2) 55%, var(--bg-raised)); }
-@media (prefers-reduced-motion: no-preference) {
-    .ia-wave-1 { animation: bob 5s ease-in-out infinite; }
-    .ia-wave-2 { animation: bob 7s ease-in-out infinite reverse; }
-    .ia-sun { animation: glow 6s ease-in-out infinite; transform-origin: 248px 52px; }
-    .ia-tree { transform-origin: 150px 116px; animation: sway 6s ease-in-out infinite; }
-}
-@keyframes bob { 50% { transform: translateX(-14px) translateY(3px); } }
-@keyframes glow { 50% { transform: scale(1.12); opacity: 1; } }
-@keyframes sway { 50% { transform: rotate(2.5deg); } }
 @media (max-width: 760px) {
     .island-teaser { grid-template-columns: 1fr; padding: 24px; }
     .island-art { order: -1; max-width: 300px; }
 }
 
-/* Contact band gets the same pointer glow as the hero. */
-.contact-band[data-spotlight] { background: radial-gradient(420px circle at var(--mx) var(--my), var(--accent-soft), transparent 65%), linear-gradient(120deg, var(--accent-soft), transparent 70%), var(--bg-raised); }
-
-/* Revealed groups arrive one after another (public.js sets --d per batch). */
-@media (prefers-reduced-motion: no-preference) {
-    .reveal-on .reveal { transition-delay: var(--d, 0ms); }
-}
-
-/* Page-to-page cross-fade, and a project's cover image morphs into the case-study hero (Chromium; others just navigate). */
-@view-transition { navigation: auto; }
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: .25s; }
-@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
 
 /* Featured cards: one row on wide screens; on tablets an odd count lets the first span the row so none is left alone. */
 @media (min-width: 980px) { .featured-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -798,4 +741,88 @@ details.more[open] .when-open { display: inline; }
     .featured-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .featured-grid > :first-child:nth-last-child(odd) { grid-column: 1 / -1; }
     .featured-grid > :first-child:nth-last-child(odd) .project-media { aspect-ratio: 21 / 9; }
+}
+
+/* ---------- Home: scroll cue ---------- */
+.scroll-cue {
+    position: absolute; left: 0; right: 0; bottom: 18px; margin-inline: auto; width: max-content;
+    display: grid; justify-items: center; gap: 6px;
+    color: var(--text-faint); text-decoration: none; font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+}
+.scroll-cue:hover { color: var(--accent); }
+.scroll-cue-mouse { width: 22px; height: 34px; border: 2px solid currentColor; border-radius: 12px; display: grid; justify-items: center; padding-top: 6px; }
+.scroll-cue-mouse span { width: 3px; height: 7px; border-radius: 2px; background: currentColor; }
+@media (max-width: 860px), (max-height: 640px) { .scroll-cue { display: none; } }
+
+/* ---------- Home: hero aurora (two soft light sources; motion.css drifts them) ---------- */
+.hero-aurora { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; mask-image: linear-gradient(#000 55%, transparent); }
+.hero-aurora span {
+    position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(70px); opacity: .32;
+    background: radial-gradient(circle, var(--accent), transparent 65%); left: -12vmax; top: -18vmax;
+}
+.hero-aurora span + span { background: radial-gradient(circle, var(--accent-2), transparent 65%); left: auto; right: -14vmax; top: 10vmax; opacity: .26; }
+:root[data-theme="light"] .hero-aurora span { opacity: .16; }
+@media (prefers-color-scheme: light) { :root:not([data-theme]) .hero-aurora span { opacity: .16; } }
+
+/* ---------- Home: chapters (sections numbered in order, "01 ——", whichever ones the page has) ---------- */
+[data-progress] { counter-reset: chapter; }
+[data-progress] > .section :is(.section-head, .island-copy, .contact-band) .kicker::before {
+    counter-increment: chapter; content: counter(chapter, decimal-leading-zero);
+    display: inline-block; padding-right: 46px; color: var(--text-faint); font-variant-numeric: tabular-nums;
+    background: linear-gradient(var(--accent), var(--accent)) no-repeat right 10px center / 26px 1px;
+    transition: background-size var(--dur-slow, .64s) var(--ease-out, ease) 150ms;
+}
+
+/* ---------- Home: section rail (a dot per section on wide screens, following the scroll) ---------- */
+.section-rail {
+    position: fixed; right: 22px; top: 50%; translate: 0 -50%; z-index: 80;
+    opacity: 0; visibility: hidden; transition: opacity .32s, visibility .32s;
+}
+.section-rail.show { opacity: 1; visibility: visible; }
+.section-rail ol { list-style: none; display: grid; gap: 14px; }
+.section-rail a {
+    position: relative; display: block; width: 10px; height: 10px; border-radius: 999px; background: var(--border-strong);
+    transition: height .32s cubic-bezier(.16, 1, .3, 1), background .32s;
+}
+.section-rail a:hover, .section-rail a:focus-visible { background: var(--accent-2); }
+.section-rail a.is-active { height: 28px; background: var(--accent); }
+.rail-label {
+    position: absolute; right: 22px; top: 50%; translate: 6px -50%; white-space: nowrap; pointer-events: none;
+    font-size: 12px; font-weight: 700; color: var(--text); background: var(--bg-raised); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 6px; box-shadow: var(--shadow); opacity: 0;
+    transition: opacity .16s, translate .32s cubic-bezier(.16, 1, .3, 1);
+}
+.section-rail a:hover .rail-label, .section-rail a:focus-visible .rail-label { opacity: 1; translate: 0 -50%; }
+@media (max-width: 1279px) { .section-rail { display: none; } }
+
+/* ---------- Header: one underline glides to the active link (public.js places it on wide screens) ---------- */
+.nav-indicator {
+    position: absolute; left: 0; bottom: 2px; height: 2px; width: 1px; border-radius: 2px; background: var(--accent);
+    transform-origin: 0 50%; opacity: 0; pointer-events: none;
+    transition: transform .32s cubic-bezier(.16, 1, .3, 1), opacity .16s;
+}
+@media (min-width: 981px) {
+    .site-nav.has-indicator { position: relative; }
+    .site-nav.has-indicator a.is-active::after, .site-nav.has-indicator a[aria-current="page"]::after { content: none; }
+}
+@media (max-width: 980px) { .nav-indicator { display: none; } }
+/* Phones: the header tucks away while reading down and returns on the first scroll up (public.js). */
+@media (max-width: 860px) {
+    .site-header { transition: translate .32s cubic-bezier(.16, 1, .3, 1), box-shadow .2s; }
+    .site-header.tucked { translate: 0 -100%; }
+}
+
+/* ---------- Hover and touch feedback ---------- */
+.service .icon { display: inline-block; transition: transform .32s cubic-bezier(.16, 1, .3, 1); }
+.service:hover .icon { transform: translateY(-4px) rotate(-8deg) scale(1.12); }
+.services .service:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.skill-group .chip { transition: transform .16s cubic-bezier(.16, 1, .3, 1), color .15s, border-color .15s; }
+.skill-group .chip:hover { transform: translateY(-3px); color: var(--accent); border-color: var(--accent); }
+/* Touch has no hover, so a press answers every tap on a card or button. */
+@media (hover: none) {
+    .project-card, .island-teaser, .service, .skill-group, .btn, .filter-btn, .nf-link, .pager-link {
+        transition: transform .16s cubic-bezier(.16, 1, .3, 1), border-color .2s, box-shadow .2s;
+    }
+    .project-card:active, .island-teaser:active, .service:active, .skill-group:active,
+    .btn:active, .filter-btn:active, .nf-link:active, .pager-link:active { transform: scale(.97); }
 }

@@ -40,6 +40,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
     <link rel="stylesheet" href="~/css/site-v2.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/motion.css" asp-append-version="true" />
     <script src="~/js/theme.js" asp-append-version="true"></script>
     @* Written raw: Razor would encode the "+" in the type attribute; the JSON is already script-safe. *@
     @Html.Raw($"<script type=\"application/ld+json\">{structuredData}</script>")
@@ -47,7 +48,7 @@
 <body>
     <a class="skip-link" href="#main">Skip to content</a>
     <div class="bg-grid" aria-hidden="true"></div>
-    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="bg-glow" data-scroll="ambient" aria-hidden="true"></div>
 
     <header class="site-header" id="siteHeader">
         <div class="container header-inner">
@@ -95,6 +96,8 @@
                 <a href="/cv">CV</a>
                 <a href="/privacy">Privacy</a>
             </nav>
+            @* Shown by public.js, and not when the device already asks for reduced motion. *@
+            <button type="button" class="motion-toggle" id="motionToggle" aria-pressed="true" hidden>Animations</button>
         </div>
     </footer>
 
@@ -103,6 +106,7 @@
     </a>
 
     <script src="~/js/public.js" asp-append-version="true"></script>
+    <script src="~/js/motion.js" asp-append-version="true"></script>
     @if (ViewData["NoVisitReport"] is not true)
     {
         <script src="~/js/telemetry.js" asp-append-version="true" defer></script>

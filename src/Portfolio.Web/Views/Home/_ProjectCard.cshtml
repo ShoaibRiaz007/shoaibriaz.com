@@ -7,8 +7,9 @@
     // The projects page passes its ?area= pick; cards outside it start hidden so the list is already
     // filtered before (or without) JS.
     var activeArea = ViewData["Area"] as string;
+    // How the card arrives (motion.css): a page can ask for another entrance through ViewData["Enter"].
 }
-<article class="card project-card reveal" data-category="@areaSlug" data-search="@search" hidden="@(activeArea is not null && activeArea != area)">
+<article class="card project-card" data-enter="@(ViewData["Enter"] as string ?? "card")" data-category="@areaSlug" data-search="@search" hidden="@(activeArea is not null && activeArea != area)">
     <div class="project-media" style="view-transition-name: cover-@Model.Slug">
         @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
         {

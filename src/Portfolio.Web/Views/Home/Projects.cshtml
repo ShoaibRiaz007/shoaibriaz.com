@@ -8,14 +8,14 @@
 }
 <section class="page-hero">
     <div class="container">
-        <span class="kicker">Work</span>
-        <h1>Projects</h1>
-        <p>AI/LLM features, .NET backends and desktop add-ins, and the Unity and XR products I've shipped along the way.</p>
+        <span class="kicker" data-enter="hero" style="--i:0">Work</span>
+        <h1 data-enter="hero" style="--i:1">Projects</h1>
+        <p data-enter="hero" style="--i:2">AI/LLM features, .NET backends and desktop add-ins, and the Unity and XR products I've shipped along the way.</p>
     </div>
 </section>
 
 <section class="container" aria-label="Project list">
-    <div class="toolbar">
+    <div class="toolbar" data-enter="hero" style="--i:3">
         @* Links rather than buttons, so a filter works without JS and can be shared; public.js upgrades them
            to filter in place and keeps ?area= in the URL. *@
         <nav class="filter-group" aria-label="Filter by area">
@@ -38,7 +38,7 @@
         </div>
     </div>
     <p class="muted small-note" id="projectCount" role="status" aria-live="polite">@shown @(shown == 1 ? "project" : "projects")</p>
-    <div class="project-grid" id="projectGrid">
+    <div class="project-grid" id="projectGrid" data-stagger>
         @foreach (var p in Model.Projects) { <partial name="_ProjectCard" model="p" /> }
     </div>
     @* Every card is in the page (search engines and no-JS visitors see them all); public.js shows them a dozen at a time. *@

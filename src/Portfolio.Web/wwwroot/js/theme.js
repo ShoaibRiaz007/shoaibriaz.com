@@ -10,14 +10,19 @@
         if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
     } catch (e) { /* follow the OS theme */ }
 
-    // Scroll-reveal is opt-in: content is visible by default, and only hidden-until-scrolled when motion is
-    // welcome and the browser can observe it. public.js does the revealing and marks 'reveal-ready'; if it
-    // never runs (blocked, failed to load), drop the opt-in so nothing stays invisible.
-    if ('IntersectionObserver' in window && window.matchMedia
+    // Motion off by choice (the footer switch, remembered) works like the device setting: no motion-on below.
+    var motionOff = false;
+    try { motionOff = localStorage.getItem('motion') === 'reduced'; } catch (e) { /* follow the device */ }
+    if (motionOff) root.setAttribute('data-motion', 'reduced');
+
+    // Entrances are opt-in: content is visible by default, and [data-enter] blocks are only held back until
+    // they arrive when motion is welcome and the browser can observe it. motion.js does the revealing and marks
+    // 'motion-ready'; if it never runs (blocked, failed to load), drop the opt-in so nothing stays invisible.
+    if (!motionOff && 'IntersectionObserver' in window && window.matchMedia
         && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
-        root.classList.add('reveal-on');
+        root.classList.add('motion-on');
         setTimeout(function () {
-            if (!root.classList.contains('reveal-ready')) root.classList.remove('reveal-on');
+            if (!root.classList.contains('motion-ready')) root.classList.remove('motion-on');
         }, 3000);
     }
 })();

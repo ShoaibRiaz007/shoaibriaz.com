@@ -1,0 +1,246 @@
+/* =====================================================================================================
+   Motion: how the public site moves. site-v2.css says how things look (including hover and focus states);
+   motion.js reads the data attributes and sets the classes and custom properties used here.
+
+   Rules of the system
+   - Scrolling stays native: nothing pins, snaps or takes over the scroll.
+   - Content arrives once. A [data-enter] block plays its entrance when it first comes into view and then stays;
+     scrolling back never hides it again, and text is never left half-faded while someone reads it.
+   - Only what physically belongs to the scroll follows it ([data-scroll]); only what belongs to the pointer
+     follows the pointer ([data-pointer]).
+   - One vocabulary on shared tokens. Entrances animate opacity and the individual transform properties
+     (translate, scale, rotate), so they compose with hover and pointer effects, which use transform.
+   - Reduced motion turns all of it off: the device setting, or the visitor's footer switch
+     (html[data-motion="reduced"]), which takes the same path.
+   - Decorative loops only run where they can be seen: a [data-idle] region pauses them while it is off screen.
+
+   Adding motion to new markup is an attribute, not new CSS. The vocabulary is listed at the top of motion.js.
+
+   Sections: 1 tokens · 2 policy · 3 enter · 4 scroll · 5 pointer · 6 idle loops · 7 keyframes
+   ===================================================================================================== */
+
+/* ---------- 1. Tokens ---------- */
+:root {
+    --dur-fast: 160ms;
+    --dur-base: 320ms;
+    --dur-slow: 640ms;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);   /* arrivals: quick start, long soft settle */
+    --ease-std: cubic-bezier(.4, 0, .2, 1);    /* state changes */
+    --stagger: 80ms;                           /* between siblings arriving together */
+    --stagger-item: 45ms;                      /* between items inside a block */
+    --move-s: 10px;
+    --move-m: 24px;
+    --move-l: 48px;
+}
+
+/* ---------- 2. Policy ---------- */
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+:root[data-motion="reduced"] { scroll-behavior: auto; }
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
+    transition: none !important; animation: none !important;
+}
+/* Off screen, a [data-idle] region's loops hold still (motion.js toggles .idle-paused). */
+.idle-paused, .idle-paused *, .idle-paused *::before, .idle-paused *::after { animation-play-state: paused !important; }
+/* Page-to-page cross-fade; a project's cover morphs into its case study (Chromium; others just navigate). */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .25s; }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+@media print { [data-enter] { opacity: 1 !important; animation: none !important; } }
+
+/* ---------- 3. Enter ---------- */
+@media (prefers-reduced-motion: no-preference) {
+    /* Held back only once motion.js can reveal it (theme.js sets motion-on and removes it if motion.js never
+       arrives). The hero is excluded: it plays on load from CSS alone. */
+    .motion-on [data-enter]:not(.in):not([data-enter="hero"]) { opacity: 0; }
+
+    [data-enter] { --enter: m-rise; --enter-dur: var(--dur-slow); }
+    span[data-enter] { display: inline-block; }   /* transforms don't apply to plain inline boxes */
+    [data-enter="card"] { --enter: m-card; }
+    [data-enter="deal"] { --enter: m-deal; --enter-dur: 820ms; }   /* rows of three, dealt from the middle */
+    [data-enter="flip"] { --enter: m-flip; transform-origin: 50% 100%; }
+    [data-enter="slide-left"] { --enter: m-slide-left; }
+    [data-enter="slide-right"] { --enter: m-slide-right; }
+    [data-enter="tilt-left"] { --enter: m-tilt-left; }
+    [data-enter="tilt-right"] { --enter: m-tilt-right; }
+    [data-enter="widen"] { --enter: m-widen; }
+    [data-stagger]:has(> [data-enter="flip"]) { perspective: 1200px; }
+
+    .motion-on [data-enter].in {
+        animation: var(--enter) var(--enter-dur) var(--ease-out) both;
+        animation-delay: calc(var(--i, 0) * var(--stagger));
+    }
+
+    /* heading: the label slides in and its chapter rule draws, the title rises out of a mask, the note follows. */
+    .motion-on [data-enter="heading"].in { animation: none; }
+    .motion-on [data-enter="heading"]:not(.in) .kicker::before { background-size: 0 1px; }
+    .motion-on [data-enter="heading"].in .kicker { display: inline-block; animation: m-slide-in var(--dur-slow) var(--ease-out) both; }
+    .motion-on [data-enter="heading"].in h2 { animation: m-unmask 760ms var(--ease-out) 60ms both; }
+    .motion-on [data-enter="heading"].in :is(p, a) { animation: m-rise-s var(--dur-slow) var(--ease-out) 180ms both; }
+
+    /* hero: on load, piece by piece in the order the markup gives (--i). Starts at .01, not 0: Chrome doesn't
+       count fully transparent text as painted, and 0 would push back the Largest Contentful Paint. */
+    [data-enter="hero"] { animation: m-hero 700ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 90ms + 60ms); }
+
+    /* Items: after their block, one after another. */
+    .motion-on [data-enter].in [data-enter-item] {
+        animation: var(--item) var(--dur-base) var(--ease-out) both;
+        animation-delay: calc(var(--i, 0) * var(--stagger) + 200ms + var(--j, 0) * var(--stagger-item));
+    }
+    [data-enter-item="pop"] { --item: m-pop; }
+    [data-enter-item="spin"] { --item: m-spin; }
+    [data-enter-item="slide-right"] { --item: m-slide-right; }
+    /* dot: the item's ::before marker (the timeline's role dots) fills in; the item itself stays put. */
+    .motion-on [data-enter].in [data-enter-item="dot"] { animation: none; }
+    .motion-on [data-enter].in [data-enter-item="dot"]::before {
+        animation: m-dot var(--dur-base) var(--ease-out) both;
+        animation-delay: calc(250ms + var(--j, 0) * 150ms);
+    }
+
+    /* A filtered-in card replays a short rise (public.js adds .pop when the projects filter shows it again). */
+    .motion-on [data-enter].in.pop { animation: m-rise-s var(--dur-base) var(--ease-out) both; }
+}
+
+/* ---------- 4. Scroll ---------- */
+@supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+        [data-scroll="lift"] { animation: m-lift linear both; animation-timeline: view(); animation-range: exit 10% exit 100%; }
+        [data-scroll="recede"] { animation: m-recede linear both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
+        [data-scroll="fade"] { animation: m-fade-down linear both; animation-timeline: scroll(root); animation-range: 0 160px; }
+        [data-scroll="depth-far"] { animation: m-depth-far linear both; animation-timeline: view(); animation-range: cover 0% cover 100%; }
+        [data-scroll="depth-near"] { animation: m-depth-near linear both; animation-timeline: view(); animation-range: cover 0% cover 100%; }
+        [data-scroll="ambient"] { inset: -15%; animation: m-ambient linear both; animation-timeline: scroll(root); }
+        /* draw: a line down the element's left edge draws as it passes through the viewport. */
+        [data-scroll="draw"] { border-left-color: transparent; }
+        [data-scroll="draw"]::before {
+            content: ""; position: absolute; left: -2px; top: 0; bottom: 0; width: 2px;
+            background: linear-gradient(var(--accent), var(--border)); transform-origin: top;
+            animation: m-draw linear both; animation-timeline: view(); animation-range: entry 10% cover 50%;
+        }
+    }
+}
+
+/* ---------- 5. Pointer ---------- */
+/* spotlight: a soft light under the pointer (--mx/--my). The hero paints it on ::before, other hosts as a layer
+   of their background. */
+[data-pointer="spotlight"] { --mx: 20%; --my: 20%; }
+.hero[data-pointer="spotlight"]::before { background: radial-gradient(520px circle at var(--mx) var(--my), var(--accent-soft), transparent 60%); }
+.contact-band[data-pointer="spotlight"] {
+    background: radial-gradient(420px circle at var(--mx) var(--my), var(--accent-soft), transparent 65%),
+        linear-gradient(120deg, var(--accent-soft), transparent 70%), var(--bg-raised);
+}
+/* glow: the same light inside a card (--gx/--gy). */
+[data-pointer-each="glow"] > * {
+    --gx: 50%; --gy: 0%;
+    background: radial-gradient(260px circle at var(--gx) var(--gy), var(--accent-soft), transparent 65%), var(--bg-raised);
+}
+/* tilt: a few degrees toward the pointer, with a glow and, if given, a badge riding under the pointer. */
+[data-pointer-each="tilt"] > * { --gx: 50%; --gy: 50%; --rx: 0deg; --ry: 0deg; transform-style: preserve-3d; }
+[data-pointer-each="tilt"] > *::before {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; opacity: 0;
+    background: radial-gradient(360px circle at var(--gx) var(--gy), color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%);
+    transition: opacity var(--dur-base) var(--ease-std);
+}
+[data-pointer-each="tilt"] > .tilting::before { opacity: 1; }
+[data-pointer-each="tilt"] > .tilting {
+    transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-3px);
+    transition: transform .08s linear, box-shadow .2s, border-color .2s;
+}
+[data-badge]::after {
+    content: attr(data-badge); position: absolute; left: var(--gx); top: var(--gy); z-index: 2; pointer-events: none;
+    translate: -50% -50%; scale: .4; opacity: 0; white-space: nowrap;
+    padding: 8px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 800; letter-spacing: .02em;
+    color: var(--accent-ink); background: var(--accent); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, .5);
+    transition: opacity var(--dur-fast) var(--ease-std), scale var(--dur-base) var(--ease-out);
+}
+[data-badge].tilting::after { opacity: 1; scale: 1; }
+/* lean: anything marked data-lean inside follows --px/--py (-1..1) and settles back. */
+[data-pointer="lean"] [data-lean] {
+    transform: translate(calc(var(--px, 0) * 10px), calc(var(--py, 0) * 8px)) rotate(calc(var(--px, 0) * 1.5deg));
+    transition: transform var(--dur-slow) var(--ease-out);
+}
+/* magnet: motion.js sets the transform; this eases it in and back. */
+[data-pointer="magnet"] { transition: transform var(--dur-base) var(--ease-out), background .15s; }
+/* Hover focus: in a [data-hover-focus] group, the hovered child stands forward and its siblings quiet down. */
+[data-hover-focus] > * { transition: filter var(--dur-base) var(--ease-std), border-color .2s; }
+@media (hover: hover) {
+    [data-hover-focus]:hover > :not(:hover) { filter: saturate(.35) brightness(.94); }
+    [data-hover-focus] > :hover { border-color: var(--border-strong); }
+}
+
+/* ---------- 6. Idle loops (decorative, always optional) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+    .status-dot::after { animation: m-pulse 2s ease-out infinite; }
+    .avatar-wrap::before { animation: m-ring 8s linear infinite; }
+    .hero-aurora span { animation: m-aurora-a 22s ease-in-out infinite alternate; }
+    .hero-aurora span + span { animation: m-aurora-b 28s ease-in-out infinite alternate; }
+    /* Surname: its hero entrance, then a light passing across it every few seconds. */
+    .hero h1 .word:last-child {
+        animation: m-hero 700ms var(--ease-out) both, m-sheen 7s var(--ease-std) infinite;
+        animation-delay: calc(var(--i, 0) * 90ms + 60ms), 1.6s;
+    }
+    .marquee-track { animation: m-marquee 40s linear infinite; }
+    .scroll-cue-mouse span { animation: m-cue 1.8s var(--ease-out) infinite; }
+    .ia-wave-1 { animation: m-bob 5s ease-in-out infinite; }
+    .ia-wave-2 { animation: m-bob 7s ease-in-out infinite reverse; }
+    .ia-sun { animation: m-glow 6s ease-in-out infinite; transform-origin: 248px 52px; }
+    .ia-tree { transform-origin: 150px 116px; animation: m-sway 6s ease-in-out infinite; }
+}
+/* Paused by a hover or a [data-pause] button; with motion off the marquee is one static, wrapping row. */
+.marquee:hover .marquee-track, [data-pausable].paused .marquee-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+    .marquee { mask-image: none; }
+    .marquee-track { flex-wrap: wrap; justify-content: center; gap: 10px 28px; min-width: 0; padding: 0 16px; flex-shrink: 1; }
+    .marquee-track[aria-hidden] { display: none; }
+    .marquee-track li::before { margin-right: 10px; }
+    .marquee-toggle { display: none; }
+}
+:root[data-motion="reduced"] .marquee { mask-image: none; }
+:root[data-motion="reduced"] .marquee-track { flex-wrap: wrap; justify-content: center; gap: 10px 28px; min-width: 0; padding: 0 16px; flex-shrink: 1; }
+:root[data-motion="reduced"] .marquee-track[aria-hidden] { display: none; }
+:root[data-motion="reduced"] .marquee-track li::before { margin-right: 10px; }
+:root[data-motion="reduced"] .marquee-toggle { display: none; }
+
+/* ---------- 7. Keyframes ---------- */
+/* entrances */
+@keyframes m-rise { from { opacity: 0; translate: 0 var(--move-m); } }
+@keyframes m-rise-s { from { opacity: 0; translate: 0 var(--move-s); } }
+@keyframes m-card { from { opacity: 0; translate: 0 var(--move-l); scale: .96; } }
+@keyframes m-deal {
+    from { opacity: 0; translate: calc((1 - var(--i, 0)) * 100%) var(--move-l); rotate: calc((var(--i, 0) - 1) * -7deg); scale: .92; }
+    40% { opacity: 1; }
+}
+@keyframes m-flip { from { opacity: 0; rotate: x 70deg; translate: 0 var(--move-m); } }
+@keyframes m-slide-left { from { opacity: 0; translate: calc(var(--move-l) * -1) 0; } }
+@keyframes m-slide-right { from { opacity: 0; translate: var(--move-l) 0; } }
+@keyframes m-slide-in { from { opacity: 0; translate: calc(var(--move-m) * -1) 0; } }
+@keyframes m-tilt-left { from { opacity: 0; rotate: -3deg; translate: -32px var(--move-l); } }
+@keyframes m-tilt-right { from { opacity: 0; rotate: 3deg; translate: 32px var(--move-l); } }
+@keyframes m-widen { from { opacity: 0; scale: .94 1; } }
+@keyframes m-unmask { from { clip-path: inset(0 0 100% 0); translate: 0 .4em; } to { clip-path: inset(0 0 -15% 0); } }
+@keyframes m-hero { from { opacity: .01; translate: 0 18px; } }
+@keyframes m-pop { from { opacity: 0; scale: .6; } }
+@keyframes m-spin { from { opacity: 0; rotate: -120deg; scale: .3; } }
+@keyframes m-dot { from { scale: 0; } 60% { scale: 1.35; background: var(--accent); } to { scale: 1; background: var(--accent); } }
+/* scroll */
+@keyframes m-lift { to { opacity: .35; translate: 0 calc(var(--move-l) * -1); } }
+@keyframes m-recede { to { scale: .9; opacity: .5; } }
+@keyframes m-fade-down { to { opacity: 0; translate: 0 12px; } }
+@keyframes m-depth-far { from { translate: 0 30px; } to { translate: 0 -30px; } }
+@keyframes m-depth-near { from { translate: 0 14px; } to { translate: 0 -6px; } }
+@keyframes m-ambient { from { translate: -6% -4%; } 50% { translate: 6% 3%; } to { translate: -3% 6%; } }
+@keyframes m-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+/* idle */
+@property --ring { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes m-ring { to { --ring: 360deg; } }
+@keyframes m-pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(3.2); opacity: 0; } }
+@keyframes m-aurora-a { to { translate: 14vmax 8vmax; scale: 1.15; } }
+@keyframes m-aurora-b { to { translate: -12vmax -6vmax; scale: .9; } }
+@keyframes m-sheen { 0% { background-position: 0 0; } 25%, 100% { background-position: 100% 0; } }
+@keyframes m-marquee { to { transform: translateX(-100%); } }
+@keyframes m-cue { 0% { translate: 0 0; opacity: 1; } 70% { translate: 0 10px; opacity: 0; } 100% { translate: 0 0; opacity: 0; } }
+@keyframes m-bob { 50% { transform: translateX(-14px) translateY(3px); } }
+@keyframes m-glow { 50% { transform: scale(1.12); opacity: 1; } }
+@keyframes m-sway { 50% { transform: rotate(2.5deg); } }

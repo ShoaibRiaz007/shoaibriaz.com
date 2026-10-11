@@ -23,27 +23,41 @@
     const int visiblePoints = 2;
 }
 
-<section class="hero" data-spotlight>
-    <div class="container hero-grid">
+@* data-progress: the header's thin bar tracks how far down the page the visitor is. *@
+<div data-progress>
+<nav class="section-rail" aria-label="Sections on this page" data-spy="within">
+    <ol>
+        @if (featured.Any()) { <li><a href="#work"><span class="rail-label">Work</span></a></li> }
+        @if (Model.Services.Any() && skillGroups.Any()) { <li><a href="#approach"><span class="rail-label">How I work</span></a></li> }
+        @if (Model.ExperienceGroups.Any()) { <li><a href="#experience"><span class="rail-label">Experience</span></a></li> }
+        @if (skillGroups.Any() || Model.Services.Any()) { <li><a href="#skills"><span class="rail-label">Skills</span></a></li> }
+        <li><a href="#about"><span class="rail-label">About</span></a></li>
+        <li><a href="#contact"><span class="rail-label">Contact</span></a></li>
+    </ol>
+</nav>
+
+<section class="hero" data-pointer="spotlight" data-idle>
+    <div class="hero-aurora" aria-hidden="true"><span></span><span></span></div>
+    <div class="container hero-grid" data-scroll="lift">
         <div class="hero-copy">
-            <span class="status hero-in" style="--i:0"><span class="status-dot" aria-hidden="true"></span>
+            <span class="status" data-enter="hero" style="--i:0"><span class="status-dot" aria-hidden="true"></span>
                 @(currentRole is null ? "Open to opportunities" : $"{currentRole.Role} at {current!.Company} · open to lead roles")
             </span>
             <h1 aria-label="@bio.FullName">
                 @for (var i = 0; i < nameWords.Length; i++)
                 {
-                    <span class="word" aria-hidden="true" style="--i:@(i + 1)">@nameWords[i]</span>
+                    <span class="word" aria-hidden="true" data-enter="hero" style="--i:@(i + 1)">@nameWords[i]</span>
                 }
             </h1>
             @if (headlineParts.Length > 0)
             {
-                <p class="headline hero-in" style="--i:3">
+                <p class="headline" data-enter="hero" style="--i:3">
                     <span class="visually-hidden">@bio.Headline</span>
                     <span aria-hidden="true">@headlineParts[0]@if (rotating.Count > 0) {<text> · </text><span class="rotator" data-rotator>@foreach (var r in rotating) {<span>@r</span>}</span>}</span>
                 </p>
             }
-            @if (!string.IsNullOrWhiteSpace(bio.Tagline)) { <p class="tagline hero-in" style="--i:4">@bio.Tagline</p> }
-            <div class="hero-actions hero-in" style="--i:5">
+            @if (!string.IsNullOrWhiteSpace(bio.Tagline)) { <p class="tagline" data-enter="hero" style="--i:4">@bio.Tagline</p> }
+            <div class="hero-actions" data-enter="hero" style="--i:5">
                 <a class="btn btn-primary" href="@(featured.Any() ? "#work" : "/projects")">View work
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
                 </a>
@@ -68,7 +82,7 @@
                 }
                 <a class="btn btn-link contact-fallback" href="#contact">Contact <span aria-hidden="true">→</span></a>
             </div>
-            <div class="hero-meta hero-in" style="--i:6">
+            <div class="hero-meta" data-enter="hero" style="--i:6">
                 @if (!string.IsNullOrWhiteSpace(bio.Location))
                 {
                     <span class="hero-loc">
@@ -98,8 +112,8 @@
                 </ul>
             </div>
         </div>
-        <div class="hero-side hero-in" style="--i:2">
-            <div class="avatar-wrap">
+        <div class="hero-side" data-enter="hero" style="--i:2">
+            <div class="avatar-wrap" data-scroll="recede">
                 @if (!string.IsNullOrWhiteSpace(bio.ProfileImageUrl))
                 {
                     <img class="avatar" src="@bio.ProfileImageUrl" alt="Portrait of @bio.FullName" width="260" height="260" fetchpriority="high" />
@@ -111,12 +125,17 @@
             </div>
         </div>
     </div>
+    <a class="scroll-cue" data-scroll="fade" href="@(featured.Any() ? "#work" : "#experience")" aria-label="Scroll to the work">
+        <span class="scroll-cue-mouse" aria-hidden="true"><span></span></span>
+        <span class="scroll-cue-text" aria-hidden="true">Scroll</span>
+    </a>
 </section>
+
 
 @if (!string.IsNullOrWhiteSpace(bio.YearsExperience) || Model.TotalProjects > 0 || proofs.Count > 0)
 {
     <div class="container">
-        <ul class="proof reveal" aria-label="Highlights">
+        <ul class="proof" data-enter="widen" aria-label="Highlights">
             @if (!string.IsNullOrWhiteSpace(bio.YearsExperience))
             {
                 <li class="proof-item"><strong data-count>@bio.YearsExperience</strong><span>years building with C#, .NET and Unity</span></li>
@@ -135,7 +154,7 @@
 
 @if (marquee.Count > 0)
 {
-    <div class="marquee-wrap" role="group" aria-label="Companies and tools">
+    <div class="marquee-wrap" role="group" aria-label="Companies and tools" data-velocity data-pausable data-idle>
         <div class="marquee">
             <ul class="marquee-track">
                 @foreach (var m in marquee) { <li>@m</li> }
@@ -146,7 +165,7 @@
             </ul>
         </div>
         @* Shown by public.js: content that keeps moving needs a way to stop it. *@
-        <button type="button" class="icon-btn marquee-toggle" aria-pressed="false" aria-label="Pause the moving list" hidden>
+        <button type="button" class="icon-btn marquee-toggle" data-pause aria-pressed="false" aria-label="Pause the moving list" hidden>
             <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
             <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
         </button>
@@ -157,7 +176,7 @@
 {
     <section class="section" id="work" aria-labelledby="work-title">
         <div class="container">
-            <div class="section-head">
+            <div class="section-head" data-enter="heading">
                 <div>
                     <span class="kicker">Selected work</span>
                     <h2 id="work-title">Case studies</h2>
@@ -168,8 +187,10 @@
                     <a class="text-link arrow-link" href="/projects">All @Model.TotalProjects projects <span aria-hidden="true">→</span></a>
                 }
             </div>
-            <div class="project-grid featured-grid" data-tilt>
+            <div class="project-grid featured-grid" data-stagger data-pointer-each="tilt" data-badge="View case study →">
+                @{ ViewData["Enter"] = "deal"; }
                 @foreach (var p in featured) { <partial name="_ProjectCard" model="p" /> }
+                @{ ViewData["Enter"] = null; }
             </div>
         </div>
     </section>
@@ -180,17 +201,17 @@
     @* The header's Skills link points at #skills; with no skills listed, this section answers it. *@
     <section class="section" id="@(skillGroups.Any() ? "approach" : "skills")" aria-labelledby="approach-title">
         <div class="container">
-            <div class="section-head">
+            <div class="section-head" data-enter="heading">
                 <div>
                     <span class="kicker">How I work</span>
                     <h2 id="approach-title">What I bring to a team</h2>
                 </div>
             </div>
-            <div class="services">
+            <div class="services" data-stagger data-pointer-each="glow">
                 @foreach (var s in Model.Services)
                 {
-                    <div class="card service reveal">
-                        @if (!string.IsNullOrWhiteSpace(s.Icon)) { <span class="icon" aria-hidden="true">@s.Icon</span> }
+                    <div class="card service" data-enter="card">
+                        @if (!string.IsNullOrWhiteSpace(s.Icon)) { <span class="icon" aria-hidden="true" data-enter-item="spin">@s.Icon</span> }
                         <h3>@s.Title</h3>
                         <p>@s.Description</p>
                     </div>
@@ -204,26 +225,26 @@
 {
     <section class="section" id="experience" aria-labelledby="exp-title">
         <div class="container">
-            <div class="section-head">
+            <div class="section-head" data-enter="heading">
                 <div>
                     <span class="kicker">Experience</span>
                     <h2 id="exp-title">Where I've worked</h2>
                 </div>
                 <a class="text-link arrow-link" href="/cv">Full CV <span aria-hidden="true">→</span></a>
             </div>
-            <ol class="timeline">
+            <ol class="timeline" data-hover-focus>
                 @foreach (var g in Model.ExperienceGroups)
                 {
-                    <li class="card company reveal">
+                    <li class="card company" data-enter="slide-left">
                         <div class="company-meta">
                             <h3>@g.Company</h3>
                             <p class="period">@g.Period</p>
                         </div>
-                        <ol class="roles @(g.Roles.Count > 1 ? "multi" : "")">
+                        <ol class="roles @(g.Roles.Count > 1 ? "multi" : "")" data-scroll="@(g.Roles.Count > 1 ? "draw" : null)">
                             @foreach (var r in g.Roles)
                             {
                                 var points = PublicSite.Lines(r.Description);
-                                <li class="role @(r.IsCurrent ? "current" : "")">
+                                <li class="role @(r.IsCurrent ? "current" : "")" data-enter-item="@(g.Roles.Count > 1 ? "dot" : null)">
                                     <h4>@r.Role</h4>
                                     <p class="role-meta">@string.Join(" · ", new[] { r.Period, r.EmploymentType, r.Location }.Where(x => !string.IsNullOrWhiteSpace(x)))</p>
                                     @if (points.Length > 0)
@@ -252,18 +273,18 @@
 {
     <section class="section" id="skills" aria-labelledby="skills-title">
         <div class="container">
-            <div class="section-head">
+            <div class="section-head" data-enter="heading">
                 <div>
                     <span class="kicker">Skills</span>
                     <h2 id="skills-title">What I work with</h2>
                 </div>
             </div>
-            <div class="skill-groups">
+            <div class="skill-groups" data-stagger data-hover-focus>
                 @foreach (var g in skillGroups)
                 {
-                    <div class="card skill-group reveal">
+                    <div class="card skill-group" data-enter="flip">
                         <h3>@g.Key</h3>
-                        <ul class="chips">@foreach (var s in g) { <li class="chip">@s.Name</li> }</ul>
+                        <ul class="chips">@foreach (var s in g) { <li class="chip" data-enter-item="pop">@s.Name</li> }</ul>
                     </div>
                 }
             </div>
@@ -273,18 +294,17 @@
 
 <section class="section island-section" aria-labelledby="island-title">
     <div class="container">
-        <a class="card island-teaser reveal" href="/world/" aria-labelledby="island-title">
+        <a class="card island-teaser" data-enter="card" data-pointer="lean" data-idle href="/world/" aria-labelledby="island-title">
             <div class="island-copy">
                 <span class="kicker">Something different</span>
                 <h2 id="island-title">Explore my career as a 3D island</h2>
                 <p class="muted">Walk the career trail, read the journal, sit by the campfire. Runs in the browser; keyboard and touch work.</p>
                 <span class="btn btn-ghost island-cta">Visit the island <span aria-hidden="true">→</span></span>
             </div>
-            <svg class="island-art" viewBox="0 0 320 200" aria-hidden="true">
-                <circle class="ia-sun" cx="248" cy="52" r="22"/>
+            <svg class="island-art" data-lean viewBox="0 0 320 200" aria-hidden="true">
+                <g data-scroll="depth-far"><circle class="ia-sun" cx="248" cy="52" r="22"/></g>
                 <path class="ia-wave ia-wave-2" d="M0 158c27 0 27-8 53-8s27 8 53 8 27-8 53-8 27 8 54 8 26-8 53-8 27 8 54 8v42H0z"/>
-                <path class="ia-land" d="M70 156c14-30 44-44 90-44s78 16 92 44z"/>
-                <path class="ia-tree" d="M150 116v-38m0 0c-10-10-26-9-32 0m32 0c10-10 26-9 32 0m-32 0c-4-12-16-18-26-14m26 14c4-12 16-18 26-14"/>
+                <g data-scroll="depth-near"><path class="ia-land" d="M70 156c14-30 44-44 90-44s78 16 92 44z"/><path class="ia-tree" d="M150 116v-38m0 0c-10-10-26-9-32 0m32 0c10-10 26-9 32 0m-32 0c-4-12-16-18-26-14m26 14c4-12 16-18 26-14"/></g>
                 <path class="ia-wave ia-wave-1" d="M0 170c27 0 27-8 53-8s27 8 53 8 27-8 53-8 27 8 54 8 26-8 53-8 27 8 54 8v30H0z"/>
             </svg>
         </a>
@@ -293,17 +313,17 @@
 
 <section class="section" id="about" aria-labelledby="about-title">
     <div class="container">
-        <div class="section-head">
+        <div class="section-head" data-enter="heading">
             <div>
                 <span class="kicker">About</span>
                 <h2 id="about-title">A bit more about me</h2>
             </div>
         </div>
         <div class="about">
-            <div class="prose reveal">
+            <div class="prose" data-enter>
                 @foreach (var para in PublicSite.Lines(bio.About)) { <p>@para</p> }
             </div>
-            <ul class="facts reveal">
+            <ul class="facts" data-enter="slide-right">
                 @if (!string.IsNullOrWhiteSpace(bio.Location)) { <li><span>Based in</span><span>@bio.Location</span></li> }
                 @if (!string.IsNullOrWhiteSpace(bio.YearsExperience)) { <li><span>Experience</span><span>@bio.YearsExperience years</span></li> }
                 @if (currentRole is not null) { <li><span>Currently</span><span>@currentRole.Role, @current!.Company</span></li> }
@@ -317,10 +337,10 @@
         @if (Model.Certifications.Any())
         {
             <h3 class="kicker subhead">Certifications</h3>
-            <ul class="cred-list two-col">
+            <ul class="cred-list two-col" data-stagger>
                 @foreach (var c in Model.Certifications)
                 {
-                    <li class="card cred reveal">
+                    <li class="card cred" data-enter>
                         <div>
                             <h3>@c.Name</h3>
                             <p class="muted">@c.Issuer@(c.IssuedOn is null ? "" : " · " + c.IssuedOn.Value.ToString("MMM yyyy", CultureInfo.InvariantCulture))</p>
@@ -340,11 +360,11 @@
 {
     <section class="section" aria-labelledby="quotes-title">
         <div class="container">
-            <div class="section-head"><div><span class="kicker">Kind words</span><h2 id="quotes-title">What people say</h2></div></div>
-            <div class="two-col">
-                @foreach (var t in Model.Testimonials)
+            <div class="section-head" data-enter="heading"><div><span class="kicker">Kind words</span><h2 id="quotes-title">What people say</h2></div></div>
+            <div class="two-col" data-stagger>
+                @foreach (var (t, n) in Model.Testimonials.Select((t, n) => (t, n)))
                 {
-                    <figure class="card quote reveal">
+                    <figure class="card quote" data-enter="@(n % 2 == 0 ? "tilt-left" : "tilt-right")">
                         <blockquote>“@t.Quote”</blockquote>
                         <figcaption><strong>@t.Author</strong>@(string.IsNullOrWhiteSpace(t.AuthorTitle) ? "" : $" — {t.AuthorTitle}")</figcaption>
                     </figure>
@@ -356,7 +376,7 @@
 
 <section class="section" id="contact" aria-labelledby="contact-title">
     <div class="container">
-        <div class="card contact-band reveal" data-spotlight>
+        <div class="card contact-band" data-enter="card" data-pointer="spotlight" data-pointer-area>
             <div>
                 <span class="kicker">Contact</span>
                 <h2 id="contact-title">Let's build something.</h2>
@@ -376,9 +396,10 @@
                 <p class="muted contact-privacy">This site keeps only anonymous, cookie-free visit counts. <a href="/privacy">Privacy</a></p>
             </div>
             <div class="hero-actions flush">
-                @if (!string.IsNullOrWhiteSpace(bio.Email)) { <a class="btn btn-primary" href="mailto:@bio.Email">Email me</a> }
+                @if (!string.IsNullOrWhiteSpace(bio.Email)) { <a class="btn btn-primary" data-pointer="magnet" href="mailto:@bio.Email">Email me</a> }
                 @if (!string.IsNullOrWhiteSpace(bio.LinkedIn)) { <a class="btn btn-ghost" href="@bio.LinkedIn" target="_blank" rel="me noopener">LinkedIn ↗</a> }
             </div>
         </div>
     </div>
 </section>
+</div>

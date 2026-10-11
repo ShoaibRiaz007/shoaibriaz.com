@@ -37,7 +37,7 @@
     <header class="cs-hero">
         <div class="container cs-hero-grid">
             <div class="cs-hero-text">
-                <nav aria-label="Breadcrumb">
+                <nav aria-label="Breadcrumb" data-enter="hero" style="--i:0">
                     <ol class="breadcrumb">
                         <li><a href="/">Home</a></li>
                         <li><a href="/projects">Work</a></li>
@@ -45,11 +45,11 @@
                         <li><span aria-current="page">@p.Title</span></li>
                     </ol>
                 </nav>
-                <h1>@p.Title</h1>
-                @if (!string.IsNullOrWhiteSpace(p.Summary)) { <p class="lede">@p.Summary</p> }
+                <h1 data-enter="hero" style="--i:1">@p.Title</h1>
+                @if (!string.IsNullOrWhiteSpace(p.Summary)) { <p class="lede" data-enter="hero" style="--i:2">@p.Summary</p> }
                 @if (!string.IsNullOrWhiteSpace(p.ProjectUrl) || !string.IsNullOrWhiteSpace(p.GitHubUrl) || hasMedia)
                 {
-                    <div class="hero-actions">
+                    <div class="hero-actions" data-enter="hero" style="--i:3">
                         @if (featured is not null)
                         {
                             <a class="btn btn-primary" href="#gallery"><span aria-hidden="true">▶</span> Watch the demo</a>
@@ -69,7 +69,7 @@
                     </div>
                 }
             </div>
-            <figure class="cs-cover" style="view-transition-name: cover-@p.Slug">
+            <figure class="cs-cover" data-scroll="recede" style="view-transition-name: cover-@p.Slug">
                 @if (cover is null)
                 {
                     <div class="art art-@areaSlug art-v@(PublicSite.Variant(p.Slug))" aria-hidden="true">
@@ -88,7 +88,7 @@
                     <img src="@cover" alt="@p.Title" decoding="async" fetchpriority="high" />
                 }
             </figure>
-            <dl class="cs-facts">
+            <dl class="cs-facts" data-enter="hero" style="--i:4">
                 @if (!string.IsNullOrWhiteSpace(p.Metric)) { <div><dt>Result</dt><dd class="metric">@p.Metric</dd></div> }
                 @if (!string.IsNullOrWhiteSpace(p.MyRole)) { <div><dt>Role</dt><dd>@p.MyRole</dd></div> }
                 @if (!string.IsNullOrWhiteSpace(p.Timeline)) { <div><dt>When</dt><dd>@p.Timeline</dd></div> }
@@ -101,14 +101,14 @@
         <div class="cs-main">
             @if (highlights.Length > 0)
             {
-                <section class="cs-block" id="highlights" aria-labelledby="highlights-title">
+                <section class="cs-block" id="highlights" aria-labelledby="highlights-title" data-enter>
                     <h2 id="highlights-title">Highlights</h2>
-                    <ul class="cs-highlights">@foreach (var h in highlights) { <li>@h</li> }</ul>
+                    <ul class="cs-highlights">@foreach (var h in highlights) { <li data-enter-item="slide-right">@h</li> }</ul>
                 </section>
             }
             @if (hasOverview)
             {
-                <section class="cs-block" id="overview" aria-labelledby="overview-title">
+                <section class="cs-block" id="overview" aria-labelledby="overview-title" data-enter>
                     <h2 id="overview-title">Overview</h2>
                     @foreach (var para in PublicSite.Lines(p.Description)) { <p>@para</p> }
                 </section>
@@ -116,23 +116,23 @@
             @if (hasMedia)
             {
                 <section class="cs-block cs-media" id="gallery" aria-labelledby="gallery-title">
-                    <div class="cs-media-head">
+                    <div class="cs-media-head" data-enter>
                         <h2 id="gallery-title">See it in action</h2>
                         <p class="muted">@mediaSummary</p>
                     </div>
                     @if (featured is not null)
                     {
-                        <figure class="video-featured">
+                        <figure class="video-featured" data-enter="card">
                             <partial name="_VideoFrame" model="@(new VideoFrameModel(featured, VideoTitle(featured)))" />
                             @if (!string.IsNullOrWhiteSpace(featured.Caption)) { <figcaption>@featured.Caption</figcaption> }
                         </figure>
                     }
                     @if (moreVideos.Any())
                     {
-                        <div class="videos">
+                        <div class="videos" data-stagger>
                             @foreach (var v in moreVideos)
                             {
-                                <figure>
+                                <figure data-enter="card">
                                     <partial name="_VideoFrame" model="@(new VideoFrameModel(v, VideoTitle(v)))" />
                                     @if (!string.IsNullOrWhiteSpace(v.Caption)) { <figcaption>@v.Caption</figcaption> }
                                 </figure>
@@ -141,11 +141,11 @@
                     }
                     @if (images.Any())
                     {
-                        <div class="gallery">
+                        <div class="gallery" data-stagger>
                             @foreach (var img in images)
                             {
                                 var alt = string.IsNullOrWhiteSpace(img.Caption) ? $"{p.Title} screenshot" : img.Caption;
-                                <figure>
+                                <figure data-enter="card">
                                     <button type="button" data-lightbox="@img.Url" data-alt="@alt" aria-label="View full size: @alt">
                                         <img src="@img.Url" alt="@alt" loading="lazy" decoding="async" />
                                         <span class="gallery-zoom" aria-hidden="true">⤢</span>
@@ -160,7 +160,7 @@
             }
             @foreach (var (id, title, text) in story)
             {
-                <section class="cs-block" id="@id" aria-labelledby="@(id)-title">
+                <section class="cs-block" id="@id" aria-labelledby="@(id)-title" data-enter>
                     <h2 id="@(id)-title">@title</h2>
                     @foreach (var para in PublicSite.Lines(text)) { <p>@para</p> }
                 </section>
@@ -168,38 +168,38 @@
 
             @if (Model.Previous is not null && Model.Next is not null)
             {
-                <nav class="pager" aria-label="More case studies">
-                    <a class="card pager-link" href="/project/@Model.Previous.Slug" rel="prev">
+                <nav class="pager" aria-label="More case studies" data-stagger>
+                    <a class="card pager-link" data-enter="card" href="/project/@Model.Previous.Slug" rel="prev">
                         <span class="pager-dir"><span aria-hidden="true">←</span> Previous</span>
                         <span class="pager-title">@Model.Previous.Title</span>
                     </a>
-                    <a class="card pager-link next" href="/project/@Model.Next.Slug" rel="next">
+                    <a class="card pager-link next" data-enter="card" href="/project/@Model.Next.Slug" rel="next">
                         <span class="pager-dir">Next <span aria-hidden="true">→</span></span>
                         <span class="pager-title">@Model.Next.Title</span>
                     </a>
                 </nav>
             }
         </div>
-        <aside>
+        <aside data-stagger>
             @if (toc.Count >= 3)
             {
-                <nav class="card side-card toc" aria-label="On this page" data-spy>
+                <nav class="card side-card toc" aria-label="On this page" data-spy data-enter="slide-right">
                     <h2 class="side-title">On this page</h2>
                     <ol>@foreach (var (id, title) in toc) { <li><a href="#@id">@title</a></li> }</ol>
                 </nav>
             }
             @if (tech.Length > 0)
             {
-                <div class="card side-card">
+                <div class="card side-card" data-enter="slide-right">
                     <h2 class="side-title">Tech</h2>
-                    <ul class="chips">@foreach (var t in tech) { <li class="chip">@t</li> }</ul>
+                    <ul class="chips">@foreach (var t in tech) { <li class="chip" data-enter-item="pop">@t</li> }</ul>
                 </div>
             }
-            <div class="card side-card">
+            <div class="card side-card" data-enter="slide-right" data-pointer-area>
                 <h2 class="side-title">Work with me</h2>
                 <p class="muted side-note">Building something similar?</p>
-                @if (!string.IsNullOrWhiteSpace(Model.Bio.Email)) { <a class="btn btn-ghost btn-sm" href="mailto:@Model.Bio.Email">Get in touch</a> }
-                else { <a class="btn btn-ghost btn-sm" href="/#contact">Get in touch</a> }
+                @if (!string.IsNullOrWhiteSpace(Model.Bio.Email)) { <a class="btn btn-ghost btn-sm" data-pointer="magnet" href="mailto:@Model.Bio.Email">Get in touch</a> }
+                else { <a class="btn btn-ghost btn-sm" data-pointer="magnet" href="/#contact">Get in touch</a> }
             </div>
         </aside>
     </div>
@@ -209,11 +209,11 @@
 {
     <section class="section" aria-labelledby="more-title">
         <div class="container">
-            <div class="section-head">
+            <div class="section-head" data-enter="heading">
                 <div><span class="kicker">More work</span><h2 id="more-title">Other projects</h2></div>
                 <a class="text-link" href="/projects">All projects →</a>
             </div>
-            <div class="project-grid">
+            <div class="project-grid" data-stagger>
                 @foreach (var m in Model.More) { <partial name="_ProjectCard" model="m" /> }
             </div>
         </div>

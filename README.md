@@ -41,6 +41,15 @@ src/
 scripts/                     one-off SQL scripts
 ```
 
+## Motion
+
+The public pages animate through a small declarative system. Markup asks for motion with data attributes;
+`wwwroot/css/site-v2.css` says how things look, `wwwroot/css/motion.css` how they move, and `wwwroot/js/motion.js`
+applies the attributes. For example, `data-enter="card"` makes a block rise in once when it comes into view,
+`data-stagger` on its container makes siblings follow each other, and `data-pointer="glow"` adds a light that
+follows the mouse. The full vocabulary is at the top of `motion.js`. Scrolling stays native, content arrives once
+and stays, and everything is off when the visitor prefers reduced motion.
+
 ## Running locally
 
 Requirements: .NET 10 SDK, Node 24, and a PostgreSQL database.

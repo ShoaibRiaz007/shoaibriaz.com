@@ -27,7 +27,7 @@
             <div class="section-head">
                 <div><span class="kicker">Or start here</span><h2 id="nf-work-title">Recent work</h2></div>
             </div>
-            <div class="project-grid">
+            <div class="project-grid" data-stagger>
                 @foreach (var p in Model.Suggestions) { <partial name="_ProjectCard" model="p" /> }
             </div>
         </div>
