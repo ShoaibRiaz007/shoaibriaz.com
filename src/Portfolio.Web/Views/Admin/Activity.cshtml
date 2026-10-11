@@ -1,0 +1,265 @@
+@model ActivityViewModel
+@{
+    ViewData["Title"] = "Activity";
+    var r = Model.Report;
+    var now = r.GeneratedAt;
+    var first = Model.Bars.FirstOrDefault();
+    var middle = Model.Bars.Count > 2 ? Model.Bars[Model.Bars.Count / 2] : null;
+    var peakDay = r.Daily.OrderByDescending(d => d.Views).FirstOrDefault();
+    var chartSummary = r.PageViews == 0
+        ? $"No page views in the last {r.Days} days."
+        : $"Daily page views and visitors for the last {r.Days} days. Peak: {peakDay!.Views} views on {ActivityViewModel.Day(peakDay.Day)}.";
+    string F(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    var rangeDays = r.Days.ToString();
+    var visitsTools = new TableToolsModel("recent-heading", "Search visits", "Page, source, country or device", "visits", "vq",
+        r.VisitsSearch, r.VisitsPage, new Dictionary<string, string?> { ["days"] = rangeDays, ["logins"] = r.LoginsPage.Number > 1 ? r.LoginsPage.Number.ToString() : null, ["lq"] = r.LoginsSearch });
+    var loginsTools = new TableToolsModel("logins-heading", "Search sign-ins", "Username, IP, success or failed", "logins", "lq",
+        r.LoginsSearch, r.LoginsPage, new Dictionary<string, string?> { ["days"] = rangeDays, ["visits"] = r.VisitsPage.Number > 1 ? r.VisitsPage.Number.ToString() : null, ["vq"] = r.VisitsSearch });
+}
+@* Page-specific styles; the admin layout has no head section, and a body stylesheet link is valid HTML. *@
+<link rel="stylesheet" href="~/css/admin-activity.css" asp-append-version="true" />
+
+<div class="page-head">
+    <div>
+        <h1><span class="page-icon">@AdminIcons.Get("activity")</span>Activity</h1>
+        <p class="page-lede">Anonymous, cookie-free visit stats and admin sign-in attempts. Visitor ids reset every day and no visitor IP is stored. Times are UTC.</p>
+    </div>
+    <nav class="range-switch" aria-label="Date range">
+        @foreach (var days in Model.Ranges)
+        {
+            <a asp-controller="Activity" asp-action="Activity" asp-route-days="@days" aria-current="@(days == r.Days ? "page" : null)">@days days</a>
+        }
+    </nav>
+</div>
+
+@if (Model.ShowLoginWarning)
+{
+    <p class="activity-alert" role="alert">
+        @AdminIcons.Get("alert")
+        <span><strong>@r.FailedLoginsLastHour failed sign-ins in the last hour.</strong> Someone may be guessing the password; check the log below.</span>
+    </p>
+}
+
+<section class="stat-grid" aria-labelledby="activity-stats-heading">
+    <h2 id="activity-stats-heading" class="visually-hidden">Last @r.Days days at a glance</h2>
+    <div class="stat-card stat-static">
+        <span class="stat-icon">@AdminIcons.Get("eye")</span>
+        <span class="stat-title">Page views</span>
+        <span class="stat-value">@ActivityViewModel.Number(r.PageViews)</span>
+        <span class="stat-meta">Last @r.Days days</span>
+    </div>
+    <div class="stat-card stat-static">
+        <span class="stat-icon">@AdminIcons.Get("user")</span>
+        <span class="stat-title">Unique visitors</span>
+        <span class="stat-value">@ActivityViewModel.Number(r.UniqueVisitors)</span>
+        <span class="stat-meta">Daily uniques, summed</span>
+    </div>
+    <div class="stat-card stat-static">
+        <span class="stat-icon">@AdminIcons.Get("layers")</span>
+        <span class="stat-title">Island visits</span>
+        <span class="stat-value">@ActivityViewModel.Number(r.IslandVisits)</span>
+        <span class="stat-meta">Views of /world/</span>
+    </div>
+    <div class="stat-card stat-static @(r.FailedLogins24h > 0 ? "stat-warn" : "")">
+        <span class="stat-icon">@AdminIcons.Get("key")</span>
+        <span class="stat-title">Failed sign-ins</span>
+        <span class="stat-value">@ActivityViewModel.Number(r.FailedLogins24h)</span>
+        <span class="stat-meta">Last 24 hours</span>
+    </div>
+</section>
+
+<section class="panel" aria-labelledby="chart-heading">
+    <div class="panel-head">
+        <div>
+            <h2 id="chart-heading">Daily visits</h2>
+            <p class="panel-sub">
+                <span class="legend legend-views" aria-hidden="true"></span>Page views
+                <span class="legend legend-visitors" aria-hidden="true"></span>Visitors
+            </p>
+        </div>
+        <span class="chart-peak">Peak @ActivityViewModel.Number(Model.PeakViews)</span>
+    </div>
+    <figure class="chart">
+        <svg class="chart-svg" viewBox="0 0 @Model.ChartWidth 100" preserveAspectRatio="none" role="img" aria-label="@chartSummary">
+            <line class="chart-grid" x1="0" x2="@Model.ChartWidth" y1="52" y2="52" vector-effect="non-scaling-stroke" />
+            <line class="chart-base" x1="0" x2="@Model.ChartWidth" y1="100" y2="100" vector-effect="non-scaling-stroke" />
+            @foreach (var bar in Model.Bars)
+            {
+                <g>
+                    <title>@ActivityViewModel.Day(bar.Day.Day): @bar.Day.Views views, @bar.Day.Visitors visitors</title>
+                    <rect class="chart-hit" x="@bar.X" y="0" width="@ActivityViewModel.SlotWidth" height="100" />
+                    <rect class="chart-views" x="@(bar.X + 1)" y="@F(100 - bar.ViewsHeight)" width="8" height="@F(bar.ViewsHeight)" />
+                    <rect class="chart-visitors" x="@(bar.X + 3)" y="@F(100 - bar.VisitorsHeight)" width="4" height="@F(bar.VisitorsHeight)" />
+                </g>
+            }
+        </svg>
+        <figcaption class="chart-axis" aria-hidden="true">
+            <span>@(first is null ? "" : ActivityViewModel.Day(first.Day.Day))</span>
+            <span>@(middle is null ? "" : ActivityViewModel.Day(middle.Day.Day))</span>
+            <span>Today</span>
+        </figcaption>
+    </figure>
+    <details class="chart-table">
+        <summary>Show as a table</summary>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th scope="col">Day</th><th scope="col" class="num">Page views</th><th scope="col" class="num">Visitors</th></tr></thead>
+                <tbody>
+                    @foreach (var d in r.Daily.Reverse())
+                    {
+                        <tr><td>@ActivityViewModel.Day(d.Day)</td><td class="num">@d.Views</td><td class="num">@d.Visitors</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </details>
+</section>
+
+<div class="activity-grid">
+    <partial name="~/Views/Admin/_ActivityBars.cshtml" model="Model.Sources" />
+    <partial name="~/Views/Admin/_ActivityBars.cshtml" model="Model.Countries" />
+    <partial name="~/Views/Admin/_ActivityBars.cshtml" model="Model.Pages" />
+    <partial name="~/Views/Admin/_ActivityBars.cshtml" model="Model.Devices" />
+    <partial name="~/Views/Admin/_ActivityBars.cshtml" model="Model.Referrers" />
+    <partial name="~/Views/Admin/_ActivityBars.cshtml" model="Model.Campaigns" />
+</div>
+
+@if (Model.Projects.Count > 0)
+{
+    <section class="panel" aria-labelledby="projects-heading">
+        <div class="panel-head">
+            <div>
+                <h2 id="projects-heading">Projects</h2>
+                <p class="panel-sub">How often each project page was opened in this range, most viewed first. "Order" is where it sits on the site;
+                    <a asp-controller="Admin" asp-action="List" asp-route-kind="projects">reorder the projects list</a> to lead with what people open.</p>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table stack-table project-views">
+                <thead>
+                    <tr><th scope="col">Project</th><th scope="col" class="num">Views</th><th scope="col" class="num">Visitors</th><th scope="col" class="num">Order</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Projects.Take(ActivityViewModel.TopProjects))
+                    {
+                        var width = Model.ProjectPeakViews == 0 ? 0 : Math.Max(2, p.Views * 100 / Model.ProjectPeakViews);
+                        <tr class="@(p.IsPublished ? "" : "row-hidden")">
+                            <td data-label="Project">
+                                <a asp-controller="Admin" asp-action="EditProject" asp-route-id="@p.Id">@p.Title</a>
+                                @if (!p.IsPublished) { <span class="tag">hidden</span> }
+                                <span class="project-views-bar" aria-hidden="true"><span style="width:@(width)%"></span></span>
+                            </td>
+                            <td data-label="Views" class="num">@ActivityViewModel.Number(p.Views)</td>
+                            <td data-label="Visitors" class="num">@ActivityViewModel.Number(p.Visitors)</td>
+                            <td data-label="Order" class="num">@p.Position</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.Projects.Count > ActivityViewModel.TopProjects)
+        {
+            var rest = Model.Projects.Skip(ActivityViewModel.TopProjects).ToList();
+            <details class="more-projects">
+                <summary>Show the other @rest.Count</summary>
+                <ul class="more-projects-list">
+                    @foreach (var p in rest)
+                    {
+                        <li class="@(p.IsPublished ? "" : "row-hidden")">
+                            <a asp-controller="Admin" asp-action="EditProject" asp-route-id="@p.Id">@p.Title</a>
+                            @if (!p.IsPublished) { <span class="tag">hidden</span> }
+                            <span class="more-projects-stat">@ActivityViewModel.Number(p.Views) views · @ActivityViewModel.Number(p.Visitors) visitors · order @p.Position</span>
+                        </li>
+                    }
+                </ul>
+            </details>
+        }
+    </section>
+}
+
+<section class="panel" aria-labelledby="recent-heading">
+    <div class="panel-head panel-head-tools">
+        <div>
+            <h2 id="recent-heading">Recent visits</h2>
+            <p class="panel-sub">@(r.VisitsSearch is null ? $"{ActivityViewModel.Number(r.PageViews)} in this range, newest first." : $"{ActivityViewModel.Number(r.VisitsMatched)} matching “{r.VisitsSearch}”.")</p>
+        </div>
+        <partial name="~/Views/Admin/_TableTools.cshtml" model="visitsTools" />
+    </div>
+    @if (r.RecentVisits.Count == 0)
+    {
+        <p class="empty-note">@(r.VisitsSearch is null ? "No visits in this range yet." : "No visits match that search.")</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="data-table stack-table">
+                <thead>
+                    <tr><th scope="col">When</th><th scope="col">Page</th><th scope="col">Source</th><th scope="col">Country</th><th scope="col">Device</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var v in r.RecentVisits)
+                    {
+                        <tr>
+                            <td data-label="When"><time datetime="@v.OccurredAt.ToString("o")" title="@ActivityViewModel.Absolute(v.OccurredAt)">@ActivityViewModel.Ago(v.OccurredAt, now)</time></td>
+                            <td data-label="Page" class="cell-path">
+                                <span title="@v.Path">@v.Path</span>
+                                @if (v.IsIsland) { <span class="tag tag-accent">island</span> }
+                            </td>
+                            <td data-label="Source">
+                                @v.Source
+                                @if (!string.IsNullOrEmpty(v.UtmCampaign)) { <span class="cell-sub">@v.UtmCampaign</span> }
+                            </td>
+                            <td data-label="Country">
+                                @if (v.Country is null) { <span class="cell-sub">Unknown</span> }
+                                else { <span aria-hidden="true">@Portfolio.Application.Telemetry.Countries.Flag(v.Country)</span> @(v.CountryName ?? v.Country) }
+                            </td>
+                            <td data-label="Device">@v.Device <span class="cell-sub">@v.Browser · @v.Os</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (r.VisitsPage.Count > 1) { <partial name="~/Views/Admin/_TablePager.cshtml" model="visitsTools" /> }
+    }
+</section>
+
+<section class="panel" aria-labelledby="logins-heading">
+    <div class="panel-head">
+        <div>
+            <h2 id="logins-heading">Sign-in attempts</h2>
+            <p class="panel-sub">@(r.LoginsSearch is null ? $"{ActivityViewModel.Number(r.LoginsMatched)} in this range, newest first." : $"{ActivityViewModel.Number(r.LoginsMatched)} matching “{r.LoginsSearch}”.") Passwords are never recorded; a username is shown only when it matches an admin account.</p>
+        </div>
+        <partial name="~/Views/Admin/_TableTools.cshtml" model="loginsTools" />
+    </div>
+    @if (r.LoginAttempts.Count == 0)
+    {
+        <p class="empty-note">@(r.LoginsSearch is null ? "No sign-in attempts in this range." : "No sign-in attempts match that search.")</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="data-table stack-table">
+                <thead>
+                    <tr><th scope="col">When</th><th scope="col">Username</th><th scope="col">Result</th><th scope="col">Reason</th><th scope="col">IP</th><th scope="col">Browser</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in r.LoginAttempts)
+                    {
+                        <tr class="@(a.Succeeded ? "" : "is-failure")">
+                            <td data-label="When"><time datetime="@a.OccurredAt.ToString("o")" title="@ActivityViewModel.Absolute(a.OccurredAt)">@ActivityViewModel.Ago(a.OccurredAt, now)</time></td>
+                            <td data-label="Username" class="cell-mono">@(string.IsNullOrEmpty(a.Username) ? "—" : a.Username)</td>
+                            <td data-label="Result">
+                                @if (a.Succeeded) { <span class="badge-result is-ok">@AdminIcons.Get("check") Success</span> }
+                                else { <span class="badge-result is-fail">@AdminIcons.Get("alert") Failed</span> }
+                            </td>
+                            <td data-label="Reason">@(a.FailureReason ?? "—")</td>
+                            <td data-label="IP" class="cell-mono">@(a.IpAddress ?? "—")@(a.Country is null ? "" : " · " + a.Country)</td>
+                            <td data-label="Browser">@ActivityViewModel.BrowserOs(a.UserAgent)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (r.LoginsPage.Count > 1) { <partial name="~/Views/Admin/_TablePager.cshtml" model="loginsTools" /> }
+    }
+</section>

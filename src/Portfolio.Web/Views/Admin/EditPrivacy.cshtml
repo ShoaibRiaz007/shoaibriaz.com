@@ -1,0 +1,65 @@
+@model Portfolio.Controllers.EditPrivacyViewModel
+@using Portfolio.Application.Facades
+@{
+    ViewData["Title"] = "Privacy policy";
+    var dashboardUrl = Url.Action("Index", "Admin")!;
+    var lede = Model.UpdatedAt is { } u
+        ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Shown at /privacy. Last saved {u:d MMM yyyy, HH:mm} UTC.")
+        : "Shown at /privacy. This is the built-in text; edit it and save to make it yours.";
+}
+<partial name="~/Views/Admin/_EditHeader.cshtml" model="@(new EditPageHeader("Dashboard", dashboardUrl, "Privacy policy", lede))" />
+
+<form method="post" asp-controller="PrivacyAdmin" asp-action="PrivacyPolicy" class="admin-form" data-dirty-guard>
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Policy text</h2>
+            <p>Keep it true to what the site does: the built-in text describes the visit statistics, cookies and services exactly as they work today.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field span-2">
+                <label asp-for="Title" class="form-label">Page heading</label>
+                <input asp-for="Title" class="form-control" maxlength="@SitePageFacade.MaxTitleLength" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Body" class="form-label">Text</label>
+                <textarea asp-for="Body" class="form-control policy-editor" rows="24" maxlength="@SitePageFacade.MaxBodyLength" aria-describedby="Body-help" spellcheck="true"></textarea>
+                <div class="field-meta"><span class="field-help" id="Body-help">Formatting help below. Saving shows it on the site straight away.</span></div>
+                <span asp-validation-for="Body" class="field-error"></span>
+            </div>
+        </div>
+        <details class="format-help">
+            <summary>Formatting and placeholders</summary>
+            <ul>
+                <li><code>## Heading</code> on its own line starts a section.</li>
+                <li><code>- item</code> lines make a bullet list.</li>
+                <li>A blank line starts a new paragraph.</li>
+                <li><code>**bold**</code> and <code>[link text](https://example.com)</code>; links can also be <code>mailto:</code> or a site path like <code>/cv</code>.</li>
+                @foreach (var (name, meaning) in DefaultPages.PrivacyPlaceholders)
+                {
+                    <li><code>{@name}</code> is replaced by @meaning.</li>
+                }
+            </ul>
+        </details>
+    </section>
+    <partial name="~/Views/Admin/_SaveBar.cshtml" model="@(new SaveBarModel(dashboardUrl, "Save policy"))" />
+</form>
+
+<section class="panel" aria-labelledby="preview-heading">
+    <div class="panel-head">
+        <div>
+            <h2 id="preview-heading">@(Model.UpdatedAt is null ? "Built-in text" : "As shown on the site")</h2>
+            <p class="panel-sub">With placeholders filled in. <a href="/privacy" target="_blank" rel="noopener">Open /privacy</a></p>
+        </div>
+        @if (Model.UpdatedAt is not null)
+        {
+            <form method="post" asp-controller="PrivacyAdmin" asp-action="Reset" data-confirm="Your edits are removed and the built-in text is shown again." data-confirm-title="Reset the privacy policy?" data-confirm-action="Reset">
+                <button class="btn btn-ghost btn-sm btn-danger-ghost">Reset to the built-in text</button>
+            </form>
+        }
+    </div>
+    <div class="policy-preview">
+        <partial name="_RichText" model="Model.Preview" />
+    </div>
+</section>

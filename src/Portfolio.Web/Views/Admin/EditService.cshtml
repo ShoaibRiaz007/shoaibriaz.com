@@ -1,0 +1,40 @@
+@model Service
+@{
+    ViewData["Title"] = Model.Id == 0 ? "New service" : "Edit service";
+    ViewData["ListSlug"] = "services";
+    var listUrl = Url.Action("List", new { kind = "services" })!;
+}
+<partial name="_EditHeader" model="@(new EditPageHeader("Services", listUrl, (string)ViewData["Title"]!, Model.Id == 0 ? null : Model.Title))" />
+
+<form asp-action="EditService" method="post" class="admin-form" data-dirty-guard>
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Service</h2>
+            <p>One card in the “What I do” section.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="Title" class="form-label">Title <span class="req">Required</span></label>
+                <input asp-for="Title" class="form-control" maxlength="200" required />
+                <span asp-validation-for="Title" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Icon" class="form-label"></label>
+                <input asp-for="Icon" class="form-control" maxlength="20" placeholder="🧩" aria-describedby="Icon-help" />
+                <div class="field-meta"><span class="field-help" id="Icon-help">An emoji or short icon name.</span></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Description" class="form-label"></label>
+                <textarea asp-for="Description" class="form-control" rows="4" maxlength="2000"></textarea>
+                <div class="field-meta"></div>
+                <span asp-validation-for="Description" class="field-error"></span>
+            </div>
+        </div>
+    </section>
+
+    <partial name="_OrderAndVisibility" model="Model" />
+    <partial name="_SaveBar" model="@(new SaveBarModel(listUrl, Model.Id == 0 ? "Create service" : "Save service"))" />
+</form>

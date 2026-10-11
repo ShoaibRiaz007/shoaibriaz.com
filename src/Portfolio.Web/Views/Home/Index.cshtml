@@ -1,0 +1,298 @@
+@model HomeViewModel
+@{
+    Layout = "_SiteLayout";
+    var bio = Model.Bio;
+    var current = Model.ExperienceGroups.FirstOrDefault(g => g.Roles.Any(r => r.IsCurrent));
+    var currentRole = current?.Roles.First(r => r.IsCurrent);
+    var proofProjects = Model.Projects.Where(p => !string.IsNullOrWhiteSpace(p.Metric)).Take(3).ToList();
+    // Full rows only on the home page (3 per row on desktop); the rest are one click away.
+    var showcase = Model.Projects.Count >= 3 ? Model.Projects.Take(Model.Projects.Count / 3 * 3).ToList() : Model.Projects;
+    var skillGroups = Model.Skills.GroupBy(s => string.IsNullOrWhiteSpace(s.Category) ? "Skills" : s.Category).ToList();
+    // Role highlights beyond this many sit behind "Show more" so the timeline stays scannable.
+    const int visiblePoints = 3;
+}
+
+<section class="hero">
+    <div class="container hero-grid">
+        <div>
+            <span class="status"><span class="status-dot" aria-hidden="true"></span>
+                @(currentRole is null ? "Open to opportunities" : $"{currentRole.Role} at {current!.Company}")
+            </span>
+            <h1>@bio.FullName</h1>
+            @if (!string.IsNullOrWhiteSpace(bio.Headline)) { <p class="headline">@bio.Headline</p> }
+            @if (!string.IsNullOrWhiteSpace(bio.Tagline)) { <p class="tagline">@bio.Tagline</p> }
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="@(Model.Projects.Any() ? "#work" : "/projects")">View work</a>
+                @if (!string.IsNullOrWhiteSpace(bio.ResumeUrl))
+                {
+                    <a class="btn btn-ghost" href="@bio.ResumeUrl" target="_blank" rel="noopener">Download CV</a>
+                }
+                else
+                {
+                    <a class="btn btn-ghost" href="/cv">View CV</a>
+                }
+                <a class="btn btn-link" href="#contact">Contact <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="hero-meta">
+                @if (!string.IsNullOrWhiteSpace(bio.Location))
+                {
+                    <span class="hero-loc">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                        @bio.Location · remote, hybrid or on-site
+                    </span>
+                }
+                <ul class="socials" aria-label="Elsewhere">
+                    @if (!string.IsNullOrWhiteSpace(bio.LinkedIn))
+                    {
+                        <li><a class="icon-btn" href="@bio.LinkedIn" target="_blank" rel="me noopener" aria-label="LinkedIn (opens in a new tab)">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9.75h4V21H3zM9.5 9.75h3.8v1.6h.06c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.77 2.65 4.77 6.1V21h-4v-4.9c0-1.17-.02-2.68-1.63-2.68-1.64 0-1.89 1.28-1.89 2.6V21h-4z"/></svg>
+                        </a></li>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(bio.GitHub))
+                    {
+                        <li><a class="icon-btn" href="@bio.GitHub" target="_blank" rel="me noopener" aria-label="GitHub (opens in a new tab)">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.56 9.56 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+                        </a></li>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(bio.Email))
+                    {
+                        <li><a class="icon-btn" href="mailto:@bio.Email" aria-label="Email @bio.Email">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+                        </a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <div class="hero-side">
+            @if (!string.IsNullOrWhiteSpace(bio.ProfileImageUrl))
+            {
+                <img class="avatar" src="@bio.ProfileImageUrl" alt="Portrait of @bio.FullName" width="220" height="220" />
+            }
+            else
+            {
+                <div class="avatar avatar-fallback" aria-hidden="true">@PublicSite.Initials(bio)</div>
+            }
+            <a class="island-link" href="/world/">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20h18M6 20c0-4 2.7-7 6-7s6 3 6 7"/><path d="M12 13V5m0 0c-2-2-5-1.5-6 0m6 0c2-2 5-1.5 6 0"/></svg>
+                <span><strong>Visit my island</strong><small>My career as an explorable 3D world</small></span>
+            </a>
+        </div>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(bio.YearsExperience) || proofProjects.Count > 0)
+{
+    <div class="container">
+        <ul class="proof reveal" aria-label="Highlights">
+            @if (!string.IsNullOrWhiteSpace(bio.YearsExperience))
+            {
+                <li class="proof-item"><strong>@bio.YearsExperience years</strong><span>building with C#, .NET and Unity</span></li>
+            }
+            @foreach (var p in proofProjects)
+            {
+                <li class="proof-item"><strong>@p.Metric</strong><span>@p.Title</span></li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Model.Projects.Any())
+{
+    <section class="section" id="work" aria-labelledby="work-title">
+        <div class="container">
+            <div class="section-head">
+                <div>
+                    <span class="kicker">Selected work</span>
+                    <h2 id="work-title">Case studies</h2>
+                    <p>What I built, the problem it solved and what changed because of it.</p>
+                </div>
+                @if (Model.TotalProjects > showcase.Count)
+                {
+                    <a class="text-link" href="/projects">All @Model.TotalProjects projects →</a>
+                }
+            </div>
+            <div class="project-grid">
+                @foreach (var p in showcase) { <partial name="_ProjectCard" model="p" /> }
+            </div>
+        </div>
+    </section>
+}
+
+@if (Model.ExperienceGroups.Any())
+{
+    <section class="section" id="experience" aria-labelledby="exp-title">
+        <div class="container">
+            <div class="section-head">
+                <div>
+                    <span class="kicker">Experience</span>
+                    <h2 id="exp-title">Where I've worked</h2>
+                </div>
+                <a class="text-link" href="/cv">Full CV →</a>
+            </div>
+            <ol class="timeline">
+                @foreach (var g in Model.ExperienceGroups)
+                {
+                    <li class="card company reveal">
+                        <div class="company-meta">
+                            <h3>@g.Company</h3>
+                            <p class="period">@g.Period</p>
+                        </div>
+                        <ol class="roles @(g.Roles.Count > 1 ? "multi" : "")">
+                            @foreach (var r in g.Roles)
+                            {
+                                var points = PublicSite.Lines(r.Description);
+                                <li class="role @(r.IsCurrent ? "current" : "")">
+                                    <h4>@r.Role</h4>
+                                    <p class="role-meta">@string.Join(" · ", new[] { r.Period, r.EmploymentType, r.Location }.Where(x => !string.IsNullOrWhiteSpace(x)))</p>
+                                    @if (points.Length > 0)
+                                    {
+                                        <ul>@foreach (var pt in points.Take(visiblePoints)) { <li>@pt</li> }</ul>
+                                    }
+                                    @if (points.Length > visiblePoints)
+                                    {
+                                        @* Native <details>: collapsible with or without JS. *@
+                                        <details class="more">
+                                            <summary><span class="when-closed">Show @(points.Length - visiblePoints) more</span><span class="when-open">Show less</span></summary>
+                                            <ul>@foreach (var pt in points.Skip(visiblePoints)) { <li>@pt</li> }</ul>
+                                        </details>
+                                    }
+                                </li>
+                            }
+                        </ol>
+                    </li>
+                }
+            </ol>
+        </div>
+    </section>
+}
+
+@if (skillGroups.Any() || Model.Services.Any())
+{
+    <section class="section" id="skills" aria-labelledby="skills-title">
+        <div class="container">
+            <div class="section-head">
+                <div>
+                    <span class="kicker">Skills</span>
+                    <h2 id="skills-title">What I work with</h2>
+                </div>
+            </div>
+            @if (Model.Services.Any())
+            {
+                <div class="services">
+                    @foreach (var s in Model.Services)
+                    {
+                        <div class="card service reveal">
+                            @if (!string.IsNullOrWhiteSpace(s.Icon)) { <span class="icon" aria-hidden="true">@s.Icon</span> }
+                            <h3>@s.Title</h3>
+                            <p>@s.Description</p>
+                        </div>
+                    }
+                </div>
+            }
+            @if (skillGroups.Any())
+            {
+                <div class="skill-groups stack-gap">
+                    @foreach (var g in skillGroups)
+                    {
+                        <div class="card skill-group reveal">
+                            <h3>@g.Key</h3>
+                            <ul class="chips">@foreach (var s in g) { <li class="chip">@s.Name</li> }</ul>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+}
+
+<section class="section" id="about" aria-labelledby="about-title">
+    <div class="container">
+        <div class="section-head">
+            <div>
+                <span class="kicker">About</span>
+                <h2 id="about-title">A bit more about me</h2>
+            </div>
+        </div>
+        <div class="about">
+            <div class="prose reveal">
+                @foreach (var para in PublicSite.Lines(bio.About)) { <p>@para</p> }
+            </div>
+            <ul class="facts reveal">
+                @if (!string.IsNullOrWhiteSpace(bio.Location)) { <li><span>Based in</span><span>@bio.Location</span></li> }
+                @if (!string.IsNullOrWhiteSpace(bio.YearsExperience)) { <li><span>Experience</span><span>@bio.YearsExperience years</span></li> }
+                @if (currentRole is not null) { <li><span>Currently</span><span>@currentRole.Role, @current!.Company</span></li> }
+                @foreach (var e in Model.Educations)
+                {
+                    <li><span>Education</span><span>@string.Join(", ", new[] { e.Degree, e.FieldOfStudy }.Where(x => !string.IsNullOrWhiteSpace(x))) — @e.Institution</span></li>
+                }
+            </ul>
+        </div>
+
+        @if (Model.Certifications.Any())
+        {
+            <h3 class="kicker subhead">Certifications</h3>
+            <ul class="cred-list two-col">
+                @foreach (var c in Model.Certifications)
+                {
+                    <li class="card cred reveal">
+                        <div>
+                            <h3>@c.Name</h3>
+                            <p class="muted">@c.Issuer@(c.IssuedOn is null ? "" : " · " + c.IssuedOn.Value.ToString("MMM yyyy", CultureInfo.InvariantCulture))</p>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(c.CredentialUrl))
+                        {
+                            <a class="text-link" href="@c.CredentialUrl" target="_blank" rel="noopener" aria-label="Verify @c.Name">Verify ↗</a>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</section>
+
+@if (Model.Testimonials.Any())
+{
+    <section class="section" aria-labelledby="quotes-title">
+        <div class="container">
+            <div class="section-head"><div><span class="kicker">Kind words</span><h2 id="quotes-title">What people say</h2></div></div>
+            <div class="two-col">
+                @foreach (var t in Model.Testimonials)
+                {
+                    <figure class="card quote reveal">
+                        <blockquote>“@t.Quote”</blockquote>
+                        <figcaption><strong>@t.Author</strong>@(string.IsNullOrWhiteSpace(t.AuthorTitle) ? "" : $" — {t.AuthorTitle}")</figcaption>
+                    </figure>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+<section class="section" id="contact" aria-labelledby="contact-title">
+    <div class="container">
+        <div class="card contact-band reveal">
+            <div>
+                <span class="kicker">Contact</span>
+                <h2 id="contact-title">Let's build something.</h2>
+                <p class="muted contact-note">Open to senior and lead roles and interesting contracts: remote, hybrid or on-site.</p>
+                @if (!string.IsNullOrWhiteSpace(bio.Email))
+                {
+                    <p class="contact-email">
+                        <a href="mailto:@bio.Email">@bio.Email</a>
+                        @* Hidden until public.js runs; without JS the mailto link above is the way in. *@
+                        <button type="button" class="btn btn-ghost btn-sm copy-btn" data-copy="@bio.Email">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                            <span data-copy-label>Copy email</span>
+                        </button>
+                        <span class="visually-hidden" role="status" aria-live="polite" data-copy-status></span>
+                    </p>
+                }
+                <p class="muted contact-privacy">This site keeps only anonymous, cookie-free visit counts. <a href="/privacy">Privacy</a></p>
+            </div>
+            <div class="hero-actions flush">
+                @if (!string.IsNullOrWhiteSpace(bio.Email)) { <a class="btn btn-primary" href="mailto:@bio.Email">Email me</a> }
+                @if (!string.IsNullOrWhiteSpace(bio.LinkedIn)) { <a class="btn btn-ghost" href="@bio.LinkedIn" target="_blank" rel="me noopener">LinkedIn ↗</a> }
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,54 @@
+@model Education
+@{
+    ViewData["Title"] = Model.Id == 0 ? "New education" : "Edit education";
+    ViewData["ListSlug"] = "education";
+    var listUrl = Url.Action("List", new { kind = "education" })!;
+}
+<partial name="_EditHeader" model="@(new EditPageHeader("Education", listUrl, (string)ViewData["Title"]!, Model.Id == 0 ? null : Model.Institution))" />
+
+<form asp-action="EditEducation" method="post" class="admin-form" data-dirty-guard>
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Programme</h2>
+            <p>Where and what you studied.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field span-2">
+                <label asp-for="Institution" class="form-label">Institution <span class="req">Required</span></label>
+                <input asp-for="Institution" class="form-control" maxlength="200" required />
+                <span asp-validation-for="Institution" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Degree" class="form-label"></label>
+                <input asp-for="Degree" class="form-control" maxlength="200" placeholder="Bachelor's degree" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="FieldOfStudy" class="form-label">Field of study</label>
+                <input asp-for="FieldOfStudy" class="form-control" maxlength="200" placeholder="Computer Software Engineering" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="StartYear" class="form-label">Start year</label>
+                <input asp-for="StartYear" type="number" min="1950" max="2100" class="form-control" inputmode="numeric" />
+                <span asp-validation-for="StartYear" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="EndYear" class="form-label">End year</label>
+                <input asp-for="EndYear" type="number" min="1950" max="2100" class="form-control" inputmode="numeric" />
+                <span asp-validation-for="EndYear" class="field-error"></span>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Description" class="form-label"></label>
+                <textarea asp-for="Description" class="form-control" rows="3" maxlength="5000" aria-describedby="Description-help"></textarea>
+                <div class="field-meta"><span class="field-help" id="Description-help">Optional: thesis, honours, activities.</span></div>
+            </div>
+        </div>
+    </section>
+
+    <partial name="_OrderAndVisibility" model="Model" />
+    <partial name="_SaveBar" model="@(new SaveBarModel(listUrl, Model.Id == 0 ? "Create education" : "Save education"))" />
+</form>

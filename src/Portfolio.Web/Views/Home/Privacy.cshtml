@@ -1,0 +1,20 @@
+@model PrivacyViewModel
+@{
+    Layout = "_SiteLayout";
+}
+<section class="page-hero">
+    <div class="container">
+        <span class="kicker">Privacy</span>
+        <h1>@Model.Title</h1>
+        @if (Model.UpdatedAt is { } updated)
+        {
+            <p class="legal-updated">Last updated <time datetime="@updated.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)">@updated.ToString("d MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</time></p>
+        }
+    </div>
+</section>
+
+<section class="container">
+    <div class="legal">
+        <partial name="_RichText" model="Model.Blocks" />
+    </div>
+</section>

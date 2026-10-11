@@ -1,0 +1,38 @@
+@model Project
+@{
+    var tech = PublicSite.Csv(Model.TechStack).Take(4).ToList();
+    var search = $"{Model.Title} {Model.Category} {Model.TechStack} {Model.Summary}".ToLowerInvariant();
+    var area = PublicSite.AreaOf(Model);
+    var areaSlug = PublicSite.AreaSlug(area);
+    // The projects page passes its ?area= pick; cards outside it start hidden so the list is already
+    // filtered before (or without) JS.
+    var activeArea = ViewData["Area"] as string;
+}
+<article class="card project-card reveal" data-category="@areaSlug" data-search="@search" hidden="@(activeArea is not null && activeArea != area)">
+    <div class="project-media">
+        @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+        {
+            <img src="@Model.ImageUrl" alt="" loading="lazy" decoding="async" />
+        }
+        else
+        {
+            @* Generated cover until an image is uploaded: themed by area, varied per project, CSS plus one glyph. *@
+            <div class="art art-@areaSlug art-v@(PublicSite.Variant(Model.Slug))" aria-hidden="true">
+                <span class="art-glyph"><partial name="_AreaGlyph" model="areaSlug" /></span>
+                <span class="art-label">@area</span>
+            </div>
+        }
+    </div>
+    <div class="project-body">
+        @if (!string.IsNullOrWhiteSpace(Model.Category)) { <span class="kicker">@Model.Category</span> }
+        <h3><a href="/project/@Model.Slug">@Model.Title</a></h3>
+        @if (!string.IsNullOrWhiteSpace(Model.Metric)) { <p class="metric">@Model.Metric</p> }
+        @if (!string.IsNullOrWhiteSpace(Model.Summary)) { <p class="summary">@Model.Summary</p> }
+        @if (tech.Count > 0)
+        {
+            <ul class="chips project-foot" aria-label="Tech">
+                @foreach (var t in tech) { <li class="chip">@t</li> }
+            </ul>
+        }
+    </div>
+</article>

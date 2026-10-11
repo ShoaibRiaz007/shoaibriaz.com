@@ -1,0 +1,105 @@
+@model AdminDashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var bio = Model.Bio;
+    var percent = Model.Checklist.Count == 0 ? 100 : Model.CompletedChecks * 100 / Model.Checklist.Count;
+    var firstName = string.IsNullOrWhiteSpace(bio.FullName) ? User.Identity?.Name : PublicSite.FirstName(bio);
+}
+<div class="page-head">
+    <div>
+        <h1>Welcome back, @firstName</h1>
+        <p class="page-lede">Everything on shoaibriaz.com, in one place. Changes go live as soon as you save.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-ghost" asp-action="EditBio">@AdminIcons.Get("user") Edit bio</a>
+        <a class="btn btn-accent" asp-action="EditProject">@AdminIcons.Get("plus") New project</a>
+    </div>
+</div>
+
+<section class="stat-grid" aria-labelledby="stats-heading">
+    <h2 id="stats-heading" class="visually-hidden">Content at a glance</h2>
+    @foreach (var s in Model.Stats)
+    {
+        <a class="stat-card" asp-action="List" asp-route-kind="@s.Section.Slug">
+            <span class="stat-icon">@AdminIcons.Get(s.Section.Icon)</span>
+            <span class="stat-title">@s.Section.Title</span>
+            <span class="stat-value">@s.Live<span class="stat-unit"> live</span></span>
+            <span class="stat-meta">@(s.Hidden == 0 ? "Nothing hidden" : $"{s.Hidden} hidden")</span>
+        </a>
+    }
+    @await Component.InvokeAsync("VisitorsSummary")
+</section>
+
+<div class="dash-grid">
+    <section class="panel" aria-labelledby="checklist-heading">
+        <div class="panel-head">
+            <div>
+                <h2 id="checklist-heading">Profile completeness</h2>
+                <p class="panel-sub">@Model.CompletedChecks of @Model.Checklist.Count done</p>
+            </div>
+            <div class="progress-ring" style="--p:@percent" role="img" aria-label="@percent% complete"><span>@percent%</span></div>
+        </div>
+        <ul class="checklist">
+            @foreach (var item in Model.Checklist)
+            {
+                <li class="@(item.Done ? "is-done" : "is-todo")">
+                    <span class="check-mark" aria-hidden="true">@AdminIcons.Get(item.Done ? "check" : "alert")</span>
+                    <div class="check-body">
+                        <span class="check-label">@item.Label<span class="visually-hidden">: @(item.Done ? "done" : "to do")</span></span>
+                        <span class="check-detail">@item.Detail</span>
+                    </div>
+                    @if (!item.Done)
+                    {
+                        <a class="btn btn-sm btn-ghost" asp-action="@item.FixAction" asp-all-route-data="@(item.FixRoute ?? new Dictionary<string, string>())" asp-fragment="@item.FixFragment">
+                            Fix<span class="visually-hidden"> @item.Label</span>
+                        </a>
+                    }
+                </li>
+            }
+        </ul>
+    </section>
+
+    <div class="dash-side">
+        <section class="panel profile-card" aria-labelledby="profile-heading">
+            <h2 id="profile-heading" class="visually-hidden">Profile</h2>
+            <div class="profile-row">
+                @if (!string.IsNullOrWhiteSpace(bio.ProfileImageUrl))
+                {
+                    <img src="@bio.ProfileImageUrl" alt="" class="avatar avatar-lg" />
+                }
+                else
+                {
+                    <span class="avatar avatar-lg avatar-empty" aria-hidden="true">@AdminIcons.Get("user")</span>
+                }
+                <div class="min-w-0">
+                    <div class="profile-name">@(string.IsNullOrWhiteSpace(bio.FullName) ? "Your name" : bio.FullName)</div>
+                    <div class="profile-headline">@bio.Headline</div>
+                </div>
+            </div>
+            <dl class="profile-facts">
+                <div><dt>Location</dt><dd>@(string.IsNullOrWhiteSpace(bio.Location) ? "—" : bio.Location)</dd></div>
+                <div><dt>Email</dt><dd>@(string.IsNullOrWhiteSpace(bio.Email) ? "—" : bio.Email)</dd></div>
+                <div>
+                    <dt>CV</dt>
+                    <dd>
+                        @if (string.IsNullOrWhiteSpace(bio.ResumeUrl)) { <span class="text-warn">Not uploaded</span> }
+                        else { <a href="@bio.ResumeUrl" target="_blank" rel="noopener">Open PDF<span class="visually-hidden"> (opens in a new tab)</span></a> }
+                    </dd>
+                </div>
+            </dl>
+            <a class="btn btn-ghost btn-sm w-100" asp-action="EditBio">Edit bio, photo &amp; CV</a>
+        </section>
+
+        <section class="panel" aria-labelledby="quick-heading">
+            <h2 id="quick-heading" class="panel-title">Quick add</h2>
+            <ul class="quick-actions">
+                @foreach (var s in Model.Stats)
+                {
+                    <li>
+                        <a asp-action="@s.Section.EditAction">@AdminIcons.Get("plus")<span>New @s.Section.Singular</span></a>
+                    </li>
+                }
+            </ul>
+        </section>
+    </div>
+</div>

@@ -1,0 +1,9 @@
+@model SaveBarModel
+@* Sticks to the bottom of the viewport while the form is on screen. The note is shown by admin.js once a field changes. *@
+<div class="save-bar">
+    <span class="dirty-note" data-dirty-indicator hidden><span class="dirty-dot" aria-hidden="true"></span>Unsaved changes</span>
+    <div class="save-bar-actions">
+        <a class="btn btn-ghost" href="@Model.CancelUrl">Cancel</a>
+        <button type="submit" class="btn btn-accent">@Model.SaveLabel</button>
+    </div>
+</div>

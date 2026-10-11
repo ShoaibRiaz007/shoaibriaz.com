@@ -1,0 +1,110 @@
+@model CvViewModel
+@{
+    Layout = "_SiteLayout";
+    var bio = Model.Bio;
+    var site = Model.Site;
+    var skillGroups = site.Skills.GroupBy(s => string.IsNullOrWhiteSpace(s.Category) ? "Skills" : s.Category).ToList();
+    var featured = site.Projects.Where(p => p.IsFeatured).Take(4).ToList();
+    string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host + u.AbsolutePath.TrimEnd('/') : url;
+}
+@* Generated from the same data as the site, so it's never out of date; prints to a clean one-column PDF. *@
+<div class="cv-actions">
+    <button type="button" class="btn btn-primary btn-sm" data-print>Print / save as PDF</button>
+    @if (!string.IsNullOrWhiteSpace(bio.ResumeUrl))
+    {
+        <a class="btn btn-ghost btn-sm" href="@bio.ResumeUrl" target="_blank" rel="noopener">Download designed PDF</a>
+    }
+</div>
+
+<article class="card cv">
+    <header>
+        <div>
+            <h1>@bio.FullName</h1>
+            <p class="cv-headline">@bio.Headline</p>
+        </div>
+        <ul class="cv-contact">
+            @if (!string.IsNullOrWhiteSpace(bio.Location)) { <li>@bio.Location</li> }
+            @if (!string.IsNullOrWhiteSpace(bio.Email)) { <li><a href="mailto:@bio.Email">@bio.Email</a></li> }
+            @if (!string.IsNullOrWhiteSpace(bio.LinkedIn)) { <li><a href="@bio.LinkedIn">@Host(bio.LinkedIn)</a></li> }
+            @if (!string.IsNullOrWhiteSpace(bio.GitHub)) { <li><a href="@bio.GitHub">@Host(bio.GitHub)</a></li> }
+            @if (!string.IsNullOrWhiteSpace(bio.Website)) { <li><a href="@bio.Website">@Host(bio.Website)</a></li> }
+        </ul>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(bio.About))
+    {
+        <section>
+            <h2>Summary</h2>
+            @foreach (var para in PublicSite.Lines(bio.About).Take(2)) { <p class="muted cv-para">@para</p> }
+        </section>
+    }
+
+    @if (Model.ExperienceGroups.Any())
+    {
+        <section>
+            <h2>Experience</h2>
+            @foreach (var g in Model.ExperienceGroups)
+            {
+                <div class="cv-item">
+                    <div class="cv-row"><h3>@g.Company</h3><span>@g.Period</span></div>
+                    @foreach (var r in g.Roles)
+                    {
+                        var points = PublicSite.Lines(r.Description);
+                        <div class="cv-role">
+                            <div class="cv-row"><strong>@r.Role@(string.IsNullOrWhiteSpace(r.EmploymentType) ? "" : $" · {r.EmploymentType}")</strong>
+                                @if (g.Roles.Count > 1) { <span>@r.Period</span> }
+                            </div>
+                            @if (points.Length > 0) { <ul class="points">@foreach (var pt in points) { <li>@pt</li> }</ul> }
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    }
+
+    @if (featured.Any())
+    {
+        <section>
+            <h2>Selected projects</h2>
+            @foreach (var p in featured)
+            {
+                <div class="cv-item">
+                    <div class="cv-row"><h3>@p.Title</h3><span>@p.Timeline</span></div>
+                    <p class="muted cv-para">@(string.IsNullOrWhiteSpace(p.Metric) ? p.Summary : $"{p.Metric}. {p.Summary}")</p>
+                </div>
+            }
+        </section>
+    }
+
+    @if (skillGroups.Any())
+    {
+        <section>
+            <h2>Skills</h2>
+            @foreach (var g in skillGroups)
+            {
+                <p class="cv-para"><strong>@g.Key:</strong> <span class="muted">@string.Join(" · ", g.Select(s => s.Name))</span></p>
+            }
+        </section>
+    }
+
+    @if (site.Educations.Any() || site.Certifications.Any())
+    {
+        <section>
+            <h2>Education &amp; certifications</h2>
+            @foreach (var e in site.Educations)
+            {
+                <div class="cv-row cv-item">
+                    <h3>@string.Join(", ", new[] { e.Degree, e.FieldOfStudy }.Where(x => !string.IsNullOrWhiteSpace(x))) — @e.Institution</h3>
+                    @if (e.StartYear is not null || e.EndYear is not null) { <span>@e.StartYear – @e.EndYear</span> }
+                </div>
+            }
+            @foreach (var c in site.Certifications)
+            {
+                <div class="cv-row cv-item">
+                    <h3>@c.Name — @c.Issuer</h3>
+                    @if (c.IssuedOn is not null) { <span>@c.IssuedOn.Value.ToString("MMM yyyy", CultureInfo.InvariantCulture)</span> }
+                </div>
+            }
+        </section>
+    }
+</article>

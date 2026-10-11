@@ -1,0 +1,27 @@
+@model BarList
+@{
+    var id = "bars-" + Model.Heading.ToLowerInvariant().Replace(' ', '-');
+}
+<section class="panel bar-panel" aria-labelledby="@id">
+    <h2 id="@id" class="panel-title">@Model.Heading</h2>
+    @if (Model.Rows.Count == 0)
+    {
+        <p class="empty-note">Nothing yet.</p>
+    }
+    else
+    {
+        <ol class="bar-list">
+            @foreach (var row in Model.Rows)
+            {
+                <li>
+                    <span class="bar-fill" style="width:@(Model.WidthPercent(row))%" aria-hidden="true"></span>
+                    <span class="bar-label">
+                        @if (!string.IsNullOrEmpty(row.Flag)) { <span class="bar-flag" aria-hidden="true">@row.Flag</span> }
+                        <span class="bar-text" title="@row.Label">@row.Label</span>
+                    </span>
+                    <span class="bar-count">@ActivityViewModel.Number(row.Count)<span class="bar-share">@Model.Share(row)</span></span>
+                </li>
+            }
+        </ol>
+    }
+</section>

@@ -1,0 +1,9 @@
+@model TableToolsModel
+@* Newer/Older links for one Activity table; plain links, keeping the search and the other table's state. *@
+<nav class="table-pager" aria-label="@Model.Label: pages">
+    @if (Model.Page.HasNewer) { <a class="btn btn-ghost btn-sm" href="@Model.Href(Model.Page.Number - 1, Model.Search)" rel="prev">← Newer</a> }
+    else { <span class="btn btn-ghost btn-sm" aria-disabled="true">← Newer</span> }
+    <span class="table-pager-status">Page @Model.Page.Number of @Model.Page.Count</span>
+    @if (Model.Page.HasOlder) { <a class="btn btn-ghost btn-sm" href="@Model.Href(Model.Page.Number + 1, Model.Search)" rel="next">Older →</a> }
+    else { <span class="btn btn-ghost btn-sm" aria-disabled="true">Older →</span> }
+</nav>

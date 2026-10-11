@@ -1,0 +1,186 @@
+@model Bio
+@{
+    ViewData["Title"] = "Bio & CV";
+    var dashboardUrl = Url.Action("Index")!;
+}
+<partial name="_EditHeader" model="@(new EditPageHeader("Dashboard", dashboardUrl, "Bio & CV", "Your name, story and contact details, plus the photo and CV the site offers for download."))" />
+
+<form asp-action="EditBio" method="post" class="admin-form" data-dirty-guard>
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+    @* What the URL fields held when first rendered; carried through validation re-renders (see AdminController.EditBio). *@
+    <input type="hidden" name="originalProfileImageUrl" value="@(ViewData["originalProfileImageUrl"] as string ?? Model.ProfileImageUrl)" />
+    <input type="hidden" name="originalResumeUrl" value="@(ViewData["originalResumeUrl"] as string ?? Model.ResumeUrl)" />
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Identity</h2>
+            <p>The hero at the top of the home page.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="FullName" class="form-label">Full name <span class="req">Required</span></label>
+                <input asp-for="FullName" class="form-control" maxlength="200" required autocomplete="name" />
+                <span asp-validation-for="FullName" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Headline" class="form-label"></label>
+                <input asp-for="Headline" class="form-control" maxlength="300" placeholder="Senior .NET & AI engineer" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Tagline" class="form-label"></label>
+                <textarea asp-for="Tagline" class="form-control" rows="2" maxlength="500" aria-describedby="Tagline-help"></textarea>
+                <div class="field-meta"><span class="field-help" id="Tagline-help">A sentence or two under the headline.</span></div>
+            </div>
+            <div class="field">
+                <label asp-for="Location" class="form-label"></label>
+                <input asp-for="Location" class="form-control" maxlength="200" placeholder="Lahore, Pakistan" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="YearsExperience" class="form-label">Years of experience</label>
+                <input asp-for="YearsExperience" class="form-control" maxlength="20" placeholder="7+" />
+                <div class="field-meta"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>About</h2>
+            <p>The longer story in the About section.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field span-2">
+                <label asp-for="About" class="form-label"></label>
+                <textarea asp-for="About" class="form-control" rows="8" maxlength="10000" aria-describedby="About-help"></textarea>
+                <div class="field-meta"><span class="field-help" id="About-help">Separate paragraphs with new lines.</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Contact &amp; profiles</h2>
+            <p>Shown in the contact section and the footer. Leave a field empty to hide it.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" inputmode="email" maxlength="320" autocomplete="email" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="Phone" class="form-label"></label>
+                <input asp-for="Phone" type="tel" class="form-control" maxlength="30" autocomplete="tel" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="LinkedIn" class="form-label"></label>
+                <input asp-for="LinkedIn" class="form-control" maxlength="500" placeholder="https://linkedin.com/in/..." />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="GitHub" class="form-label"></label>
+                <input asp-for="GitHub" class="form-control" maxlength="500" placeholder="https://github.com/..." />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Website" class="form-label"></label>
+                <input asp-for="Website" class="form-control" maxlength="500" placeholder="https://..." />
+                <div class="field-meta"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>File links</h2>
+            <p>Filled in automatically when you upload below. Edit only to point at a file hosted elsewhere.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="ProfileImageUrl" class="form-label">Profile photo link</label>
+                <input asp-for="ProfileImageUrl" class="form-control" maxlength="500" placeholder="https://..." />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="ResumeUrl" class="form-label">CV link</label>
+                <input asp-for="ResumeUrl" class="form-control" maxlength="500" placeholder="https://..." />
+                <div class="field-meta"></div>
+            </div>
+        </div>
+    </section>
+
+    <partial name="_SaveBar" model="@(new SaveBarModel(dashboardUrl, "Save bio"))" />
+</form>
+
+<section class="panel" id="files" aria-labelledby="files-heading">
+    <div class="panel-head">
+        <div>
+            <h2 id="files-heading">Photo &amp; CV</h2>
+            <p class="panel-sub">Each upload replaces the current file straight away.</p>
+        </div>
+    </div>
+    <div class="upload-grid">
+        <form asp-action="UploadProfileImage" method="post" enctype="multipart/form-data" class="upload-card">
+            <h3>Profile photo</h3>
+            <div class="current-file">
+                @if (!string.IsNullOrWhiteSpace(Model.ProfileImageUrl))
+                {
+                    <img src="@Model.ProfileImageUrl" alt="Current profile photo" class="avatar avatar-xl" />
+                    <span>Current photo</span>
+                }
+                else
+                {
+                    <span class="avatar avatar-xl avatar-empty" aria-hidden="true">@AdminIcons.Get("user")</span>
+                    <span class="text-warn">No photo yet</span>
+                }
+            </div>
+            <div class="dropzone" data-dropzone data-max-mb="5">
+                <input type="file" name="file" id="photo-file" class="dz-input" accept="image/jpeg,image/png,image/webp" required aria-describedby="photo-file-hint" />
+                <label for="photo-file" class="dz-label">
+                    @AdminIcons.Get("image", "dz-icon")
+                    <span class="dz-title">Drop a photo here or <u>browse</u></span>
+                    <span class="dz-hint" id="photo-file-hint">JPG, PNG or WebP, up to 5&nbsp;MB. Square works best.</span>
+                </label>
+                <div class="dz-preview" hidden>
+                    <img class="dz-thumb dz-thumb-round" alt="New photo preview" hidden />
+                    <span class="dz-name"></span>
+                    <button type="button" class="link-btn" data-dz-clear>Remove</button>
+                </div>
+                <p class="dz-error" hidden></p>
+            </div>
+            <button class="btn btn-accent btn-sm">@AdminIcons.Get("upload") Upload photo</button>
+        </form>
+        <form asp-action="UploadResume" method="post" enctype="multipart/form-data" class="upload-card">
+            <h3>CV (PDF)</h3>
+            <div class="current-file">
+                <span class="file-badge" aria-hidden="true">@AdminIcons.Get("file")</span>
+                @if (!string.IsNullOrWhiteSpace(Model.ResumeUrl))
+                {
+                    <a href="@Model.ResumeUrl" target="_blank" rel="noopener">Open current CV<span class="visually-hidden"> (opens in a new tab)</span></a>
+                }
+                else
+                {
+                    <span class="text-warn">No CV yet</span>
+                }
+            </div>
+            <div class="dropzone" data-dropzone data-max-mb="10">
+                <input type="file" name="file" id="cv-file" class="dz-input" accept="application/pdf,.pdf" required aria-describedby="cv-file-hint" />
+                <label for="cv-file" class="dz-label">
+                    @AdminIcons.Get("file", "dz-icon")
+                    <span class="dz-title">Drop a PDF here or <u>browse</u></span>
+                    <span class="dz-hint" id="cv-file-hint">PDF up to 10&nbsp;MB. The Download CV buttons use it immediately.</span>
+                </label>
+                <div class="dz-preview" hidden>
+                    <span class="dz-name"></span>
+                    <button type="button" class="link-btn" data-dz-clear>Remove</button>
+                </div>
+                <p class="dz-error" hidden></p>
+            </div>
+            <button class="btn btn-accent btn-sm">@AdminIcons.Get("upload") Upload CV</button>
+        </form>
+    </div>
+</section>

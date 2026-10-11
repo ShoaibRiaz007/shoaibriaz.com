@@ -1,0 +1,17 @@
+{
+  "name": "portfolio-world",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Interactive 3D tour of the portfolio, built into ../Portfolio.Web/wwwroot/world and served at /world.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "vite": "8.3.1"
+  }
+}

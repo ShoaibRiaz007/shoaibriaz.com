@@ -1,0 +1,13 @@
+@model EditPageHeader
+<div class="page-head page-head-form">
+    <div>
+        <nav aria-label="Breadcrumb" class="breadcrumb-nav">
+            <ol>
+                <li><a href="@Model.SectionUrl">@Model.Section</a></li>
+                <li aria-current="page">@Model.Title</li>
+            </ol>
+        </nav>
+        <h1>@Model.Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Model.Lede)) { <p class="page-lede">@Model.Lede</p> }
+    </div>
+</div>

@@ -1,0 +1,40 @@
+@model Skill
+@{
+    ViewData["Title"] = Model.Id == 0 ? "New skill" : "Edit skill";
+    ViewData["ListSlug"] = "skills";
+    var listUrl = Url.Action("List", new { kind = "skills" })!;
+}
+<partial name="_EditHeader" model="@(new EditPageHeader("Skills", listUrl, (string)ViewData["Title"]!, Model.Id == 0 ? null : Model.Name))" />
+
+<form asp-action="EditSkill" method="post" class="admin-form" data-dirty-guard>
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Skill</h2>
+            <p>Skills are grouped by category on the site.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="Name" class="form-label">Name <span class="req">Required</span></label>
+                <input asp-for="Name" class="form-control" maxlength="100" required />
+                <span asp-validation-for="Name" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Category" class="form-label"></label>
+                <input asp-for="Category" class="form-control" maxlength="100" placeholder="Backend" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="Level" class="form-label">Level (%)</label>
+                <input asp-for="Level" type="number" min="0" max="100" class="form-control" inputmode="numeric" aria-describedby="Level-help" />
+                <div class="field-meta"><span class="field-help" id="Level-help">0–100. Drives the bar length.</span></div>
+                <span asp-validation-for="Level" class="field-error"></span>
+            </div>
+        </div>
+    </section>
+
+    <partial name="_OrderAndVisibility" model="Model" />
+    <partial name="_SaveBar" model="@(new SaveBarModel(listUrl, Model.Id == 0 ? "Create skill" : "Save skill"))" />
+</form>

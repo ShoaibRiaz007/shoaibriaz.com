@@ -1,0 +1,46 @@
+@model ContentListViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    var live = Model.Rows.Count(r => r.IsPublished);
+    var hidden = Model.Rows.Count - live;
+}
+<div class="page-head">
+    <div>
+        <h1><span class="page-icon">@AdminIcons.Get(Model.Icon)</span>@Model.Title</h1>
+        <p class="page-lede">Drag rows or use the arrow buttons to set the order visitors see. <strong>Hide</strong> keeps an item here without showing it on the site.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-accent" asp-action="@Model.EditAction">@AdminIcons.Get("plus") @Model.AddLabel</a>
+    </div>
+</div>
+
+@if (Model.Rows.Any())
+{
+    <div class="list-tools" data-list-tools>
+        <div class="search-field">
+            <label for="list-search" class="visually-hidden">Search @Model.Title.ToLowerInvariant()</label>
+            @AdminIcons.Get("search", "search-icon")
+            <input type="search" id="list-search" class="form-control" placeholder="Search @Model.Title.ToLowerInvariant()…" autocomplete="off" data-list-search />
+        </div>
+        <fieldset class="segmented" data-list-filter>
+            <legend class="visually-hidden">Show</legend>
+            <input type="radio" name="list-filter" id="filter-all" value="all" checked />
+            <label for="filter-all">All <span class="seg-count" data-count="all">@Model.Rows.Count</span></label>
+            <input type="radio" name="list-filter" id="filter-live" value="live" />
+            <label for="filter-live">Live <span class="seg-count" data-count="live">@live</span></label>
+            <input type="radio" name="list-filter" id="filter-hidden" value="hidden" />
+            <label for="filter-hidden">Hidden <span class="seg-count" data-count="hidden">@hidden</span></label>
+        </fieldset>
+    </div>
+    <p class="list-lock-note" data-list-lock-note hidden>
+        @AdminIcons.Get("alert") Reordering is paused while a search or filter is active, so hidden rows can't end up in the wrong place.
+        <button type="button" class="link-btn" data-list-reset>Show all</button>
+    </p>
+}
+
+<partial name="_ContentList" model="Model" />
+
+@* Supplies the antiforgery token for admin-lists.js reorder requests and admin.js visibility toggles. *@
+<form id="reorder-token" class="d-none">@Html.AntiForgeryToken()</form>
+
+@section Scripts { <script src="~/js/admin-lists.js" asp-append-version="true"></script> }

@@ -1,0 +1,34 @@
+@model IReadOnlyList<RichText.Block>
+@* Renders parsed RichText. Every string goes through Razor's encoder; links were checked by RichText.SafeHref. *@
+@functions {
+    private void Inlines(IReadOnlyList<RichText.Inline> content)
+    {
+        foreach (var inline in content)
+        {
+            switch (inline)
+            {
+                case RichText.Bold b: <strong>@b.Value</strong> break;
+                case RichText.Link l:
+                    var external = l.Href.StartsWith("http", StringComparison.OrdinalIgnoreCase);
+                    <a href="@l.Href" rel="@(external ? "noopener" : null)" target="@(external ? "_blank" : null)">@l.Label</a>
+                    break;
+                case RichText.Text t: @t.Value break;
+            }
+        }
+    }
+}
+@foreach (var block in Model)
+{
+    switch (block)
+    {
+        case RichText.Heading h:
+            <h2>@h.Text</h2>
+            break;
+        case RichText.BulletList list:
+            <ul>@foreach (var item in list.Items) { <li>@{ Inlines(item); }</li> }</ul>
+            break;
+        case RichText.Paragraph p:
+            <p>@{ Inlines(p.Content); }</p>
+            break;
+    }
+}

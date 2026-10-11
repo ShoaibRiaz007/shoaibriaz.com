@@ -1,0 +1,15 @@
+@model VideoFrameModel
+@* One gallery video: an uploaded file plays in the page; a YouTube/Vimeo link loads in its privacy mode. The players
+   refuse to start without knowing which site embeds them, so the iframe sends the site's address (origin only), which
+   the page-wide same-origin policy otherwise withholds. *@
+<div class="video-frame">
+    @if (Model.Media.MediaType == "embed")
+    {
+        <iframe src="@PublicSite.PrivateEmbed(Model.Media.Url)" title="@Model.Title" loading="lazy" referrerpolicy="strict-origin"
+                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    }
+    else
+    {
+        <video src="@Model.Media.Url" controls preload="metadata" playsinline aria-label="@Model.Title"></video>
+    }
+</div>

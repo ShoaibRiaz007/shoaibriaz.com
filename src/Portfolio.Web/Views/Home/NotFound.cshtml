@@ -1,0 +1,35 @@
+@model NotFoundViewModel
+@{
+    Layout = "_SiteLayout";
+    ViewData["NoVisitReport"] = true;   // a missing URL isn't a page view
+}
+<section class="page-hero not-found">
+    <div class="container">
+        <span class="kicker">404 · Page not found</span>
+        <h1>This page doesn't exist.</h1>
+        <p>
+            Nothing lives at <code class="path">@PublicSite.Truncate(Model.RequestedPath, 80)</code>. It may have moved, or the
+            link has a typo. Here's where you might have been heading:
+        </p>
+        <ul class="nf-links">
+            <li><a class="card nf-link" href="/"><strong>Home</strong><span>Who I am and what I do</span></a></li>
+            <li><a class="card nf-link" href="/projects"><strong>Work</strong><span>Case studies and side projects</span></a></li>
+            <li><a class="card nf-link" href="/cv"><strong>CV</strong><span>Printable, always up to date</span></a></li>
+            <li><a class="card nf-link" href="/#contact"><strong>Contact</strong><span>Say hello</span></a></li>
+        </ul>
+    </div>
+</section>
+
+@if (Model.Suggestions.Any())
+{
+    <section class="section" aria-labelledby="nf-work-title">
+        <div class="container">
+            <div class="section-head">
+                <div><span class="kicker">Or start here</span><h2 id="nf-work-title">Recent work</h2></div>
+            </div>
+            <div class="project-grid">
+                @foreach (var p in Model.Suggestions) { <partial name="_ProjectCard" model="p" /> }
+            </div>
+        </div>
+    </section>
+}

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>The Island — Shoaib Riaz</title>
+    <meta name="description" content="A small, quiet island to wander: fish off the pier, sit by the campfire, swing from the old tree and watch the stars." />
+    <meta name="theme-color" content="#0b1a2e" />
+    <link rel="icon" href="/favicon.ico" />
+</head>
+<body>
+    <a class="skip" href="/">Skip the island — open the website</a>
+    <canvas id="scene" aria-label="A 3D island you can explore"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+    <div id="scope" class="scope" aria-hidden="true" hidden></div>
+    <div id="fade" class="fade" aria-hidden="true"></div>
+
+    <div id="loader" class="loader" role="status" aria-live="polite">
+        <div class="loader-card">
+            <div class="loader-title">Growing the island…</div>
+            <div class="loader-bar"><span id="loaderFill"></span></div>
+        </div>
+    </div>
+
+    <!-- Title screen over a slow fly-around -->
+    <section id="title" class="title" hidden aria-labelledby="titleName">
+        <div class="title-card">
+            <p class="title-kicker">Welcome to</p>
+            <h1 id="titleName" class="title-name">The Island</h1>
+            <p class="title-sub">A quiet place to wander. Fish off the pier, sit by the fire, swing from the old tree, watch the stars come out. Stay as long as you like.</p>
+            <button type="button" id="enterBtn" class="btn-primary">Step onto the island</button>
+            <div class="title-row">
+                <label class="chip"><input type="checkbox" id="titleSound" checked /> Sound &amp; music</label>
+                <a class="chip" href="/">Back to the website</a>
+            </div>
+            <p class="title-controls" id="titleControls"></p>
+        </div>
+    </section>
+
+    <header class="hud-top" id="hud" hidden>
+        <a class="brand" href="/" aria-label="Back to the website"><span aria-hidden="true">←</span> <span id="brandName">Website</span></a>
+        <div class="hud-clock" id="clock" aria-live="off"></div>
+        <nav class="hud-actions" aria-label="Island">
+            <button type="button" class="hud-btn" id="journalBtn" aria-haspopup="dialog" title="Journal (J)"><span aria-hidden="true">📖</span><span class="label">Journal</span><span class="badge" id="journalBadge" hidden></span></button>
+            <button type="button" class="hud-btn" id="mapBtn" aria-haspopup="dialog" title="Map (M)"><span aria-hidden="true">🗺️</span><span class="label">Map</span></button>
+            <button type="button" class="hud-btn" id="timeBtn" aria-haspopup="dialog" title="Time and settings (T)"><span aria-hidden="true">🌗</span><span class="label">Time</span></button>
+            <button type="button" class="hud-btn" id="photoBtn" title="Photo mode (P)"><span aria-hidden="true">📷</span><span class="label">Photo</span></button>
+            <button type="button" class="hud-btn" id="soundBtn" aria-pressed="true" title="Sound"><span aria-hidden="true" id="soundIcon">🔊</span><span class="label">Sound</span></button>
+            <button type="button" class="hud-btn" id="helpBtn" aria-haspopup="dialog" title="Controls (H)"><span aria-hidden="true">?</span><span class="label">Help</span></button>
+        </nav>
+    </header>
+
+    <div class="prompt-wrap" aria-live="polite">
+        <button type="button" id="prompt" class="prompt" hidden><kbd id="promptKey">E</kbd><span id="promptLabel"></span></button>
+    </div>
+    <div id="controls" class="controls" hidden></div>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <div id="card" class="card" role="status" hidden>
+        <div class="card-icon" id="cardIcon"></div>
+        <div>
+            <div class="card-kicker" id="cardKicker"></div>
+            <div class="card-title" id="cardTitle"></div>
+            <div class="card-sub" id="cardSub"></div>
+            <p class="card-body" id="cardBody"></p>
+            <div class="card-foot" id="cardFoot"></div>
+        </div>
+    </div>
+
+    <!-- Touch controls -->
+    <div id="joystick" class="joystick" hidden aria-hidden="true"><div class="stick"></div></div>
+    <div class="touch-actions" id="touchActions">
+        <button type="button" id="plantBtn" class="round-btn" aria-label="Plant a flower" title="Plant a flower (F)" hidden>🌱</button>
+        <button type="button" id="holdBtn" class="round-btn" aria-label="Hold to let time pass" hidden>⏩</button>
+    </div>
+
+    <!-- Panels -->
+    <dialog id="journal" class="panel" aria-labelledby="journalTitle">
+        <header class="panel-head"><h2 id="journalTitle">Journal</h2><button type="button" class="close" data-close aria-label="Close">✕</button></header>
+        <div class="tabs" role="tablist">
+            <button type="button" role="tab" class="tab" aria-selected="true" data-tab="todo">Things to do</button>
+            <button type="button" role="tab" class="tab" aria-selected="false" data-tab="fish">Fish</button>
+            <button type="button" role="tab" class="tab" aria-selected="false" data-tab="stats">Your visit</button>
+        </div>
+        <div class="tab-body" data-body="todo"><ul class="todo" id="todoList"></ul></div>
+        <div class="tab-body" data-body="fish" hidden><ul class="fish-grid" id="fishList"></ul></div>
+        <div class="tab-body" data-body="stats" hidden><dl class="stats" id="statsList"></dl>
+            <button type="button" class="link-btn" id="resetBtn">Start over (clears this browser’s journal and flowers)</button></div>
+    </dialog>
+
+    <dialog id="map" class="panel panel-map" aria-labelledby="mapTitle">
+        <header class="panel-head"><h2 id="mapTitle">Map</h2><button type="button" class="close" data-close aria-label="Close">✕</button></header>
+        <p class="panel-note">Tap a place to travel there.</p>
+        <div class="map-wrap"><canvas id="mapCanvas" width="560" height="440"></canvas><div id="mapPins" class="map-pins"></div></div>
+    </dialog>
+
+    <dialog id="timePanel" class="panel panel-small" aria-labelledby="timeTitle">
+        <header class="panel-head"><h2 id="timeTitle">Time &amp; settings</h2><button type="button" class="close" data-close aria-label="Close">✕</button></header>
+        <label class="slider-row"><span id="timeLabel">17:12</span><input type="range" id="timeSlider" min="0" max="24" step="0.05" aria-label="Hour" /></label>
+        <div class="presets">
+            <button type="button" class="chip" data-hour="6">Dawn</button>
+            <button type="button" class="chip" data-hour="12">Noon</button>
+            <button type="button" class="chip" data-hour="17.8">Golden hour</button>
+            <button type="button" class="chip" data-hour="19.4">Dusk</button>
+            <button type="button" class="chip" data-hour="23">Night</button>
+        </div>
+        <fieldset class="radio-row">
+            <legend>Clock</legend>
+            <label><input type="radio" name="timeMode" value="cycle" /> Slow day cycle (a day is 24 minutes)</label>
+            <label><input type="radio" name="timeMode" value="fixed" /> Stay at this time</label>
+            <label><input type="radio" name="timeMode" value="local" /> Follow my clock</label>
+        </fieldset>
+        <label class="check-row">Music <input type="checkbox" id="musicToggle" /></label>
+        <label class="check-row">Graphics
+            <select id="qualitySelect"><option value="auto">Auto</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+    </dialog>
+
+    <dialog id="help" class="panel panel-small" aria-labelledby="helpTitle">
+        <header class="panel-head"><h2 id="helpTitle">Getting around</h2><button type="button" class="close" data-close aria-label="Close">✕</button></header>
+        <ul class="help-list" id="helpList"></ul>
+    </dialog>
+
+    <dialog id="info" class="panel info" aria-labelledby="infoTitle">
+        <header class="panel-head"><div><div class="info-kicker" id="infoKicker"></div><h2 id="infoTitle"></h2></div><button type="button" class="close" data-close aria-label="Close">✕</button></header>
+        <div class="info-body" id="infoBody"></div>
+    </dialog>
+
+    <dialog id="letter" class="panel letter" aria-labelledby="letterTitle">
+        <header class="panel-head"><h2 id="letterTitle">A letter</h2><button type="button" class="close" data-close aria-label="Close">✕</button></header>
+        <div class="letter-body" id="letterBody"></div>
+    </dialog>
+
+    <div id="photoBar" class="photo-bar" hidden>
+        <button type="button" id="shutterBtn" class="btn-primary">📷 Save photo</button>
+        <button type="button" id="photoExit" class="hud-btn">Done</button>
+        <span class="photo-hint">Drag to frame · scroll to zoom</span>
+    </div>
+
+    <noscript><p class="noscript">The island needs JavaScript. <a href="/">Open the website</a>.</p></noscript>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

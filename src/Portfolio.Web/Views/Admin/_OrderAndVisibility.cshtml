@@ -1,0 +1,32 @@
+@model Portfolio.Domain.Abstractions.IOrderedContent
+@* An existing row's position and visibility are owned by the list page and not posted from here, so a form opened
+   before a drag or a Hide can't undo it (AdminContentFacade.UpdateKeepingListStateAsync). New rows choose visibility. *@
+@{
+    var listSlug = ViewData["ListSlug"] as string;
+}
+<section class="form-section">
+    <div class="form-section-head">
+        <h2>Visibility</h2>
+        <p>Hidden items stay here in the admin but don't appear anywhere on the site.</p>
+    </div>
+    <div class="form-grid">
+        <div class="field span-2">
+            @if (Model.Id == 0)
+            {
+                <div class="switch-field">
+                    <input asp-for="IsPublished" class="switch-input" role="switch" aria-describedby="IsPublished-help" />
+                    <label asp-for="IsPublished" class="switch-label">Visible on the public site</label>
+                </div>
+                <p class="field-help" id="IsPublished-help">Untick to save it as a hidden draft. New items are added at the end of their list.</p>
+            }
+            else
+            {
+                <p class="status-line">
+                    <span class="vis-pill @(Model.IsPublished ? "is-live" : "is-hidden")"><span class="vis-dot" aria-hidden="true"></span>@(Model.IsPublished ? "Live" : "Hidden")</span>
+                    Change the order or show/hide it from
+                    @if (listSlug is not null) { <a asp-action="List" asp-route-kind="@listSlug">the list</a> } else { <span>the list</span> }.
+                </p>
+            }
+        </div>
+    </div>
+</section>

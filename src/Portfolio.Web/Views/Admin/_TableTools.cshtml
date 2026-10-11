@@ -1,0 +1,16 @@
+@model TableToolsModel
+@* Search box for one Activity table: a plain GET form, so it works without JS. The other table's page and search are
+   carried along so searching one doesn't reset the other; a new search starts at page 1. *@
+<form method="get" action="/Admin/Activity#@Model.Anchor" class="table-search" role="search">
+    @foreach (var (name, value) in Model.Keep.Where(kv => !string.IsNullOrEmpty(kv.Value)))
+    {
+        <input type="hidden" name="@name" value="@value" />
+    }
+    <label class="visually-hidden" for="@(Model.SearchParam)-input">@Model.Label</label>
+    <input type="search" id="@(Model.SearchParam)-input" name="@Model.SearchParam" value="@Model.Search" class="form-control form-control-sm" placeholder="@Model.Placeholder" maxlength="100" />
+    <button class="btn btn-ghost btn-sm">Search</button>
+    @if (!string.IsNullOrEmpty(Model.Search))
+    {
+        <a class="btn btn-ghost btn-sm" href="@Model.Href(null, null)">Clear</a>
+    }
+</form>

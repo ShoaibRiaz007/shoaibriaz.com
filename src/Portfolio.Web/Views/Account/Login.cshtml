@@ -1,0 +1,43 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+    var hasError = !ViewData.ModelState.IsValid;
+}
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <span class="brand-mark" aria-hidden="true">SR</span>
+            <span class="brand-text">Portfolio <span>admin</span></span>
+        </div>
+        <h1>Sign in</h1>
+        <p class="auth-lede">Manage the content of shoaibriaz.com.</p>
+
+        <form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post" class="auth-form">
+            @if (hasError)
+            {
+                <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+            }
+            <div class="field">
+                <label asp-for="Username" class="form-label"></label>
+                <input asp-for="Username" class="form-control" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus="@(!hasError)" />
+                <span asp-validation-for="Username" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Password" class="form-label"></label>
+                <div class="password-wrap">
+                    <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                    @* Hidden until admin.js wires it, so it never shows as a dead button. *@
+                    <button type="button" class="password-toggle" data-password-toggle aria-controls="Password" aria-pressed="false" hidden>
+                        <span class="when-hidden">@AdminIcons.Get("eye")</span>
+                        <span class="when-shown">@AdminIcons.Get("eye-off")</span>
+                        <span class="visually-hidden">Show password</span>
+                    </button>
+                </div>
+                <p class="field-help capslock-hint" data-capslock-hint="Password" hidden>@AdminIcons.Get("alert") Caps Lock is on.</p>
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+            <button type="submit" class="btn btn-accent btn-block">Sign in</button>
+        </form>
+    </div>
+    <a class="auth-back" asp-controller="Home" asp-action="Index">@AdminIcons.Get("arrow-left") Back to the site</a>
+</div>

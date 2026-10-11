@@ -1,0 +1,49 @@
+@model Certification
+@{
+    ViewData["Title"] = Model.Id == 0 ? "New certification" : "Edit certification";
+    ViewData["ListSlug"] = "certifications";
+    var listUrl = Url.Action("List", new { kind = "certifications" })!;
+}
+<partial name="_EditHeader" model="@(new EditPageHeader("Certifications", listUrl, (string)ViewData["Title"]!, Model.Id == 0 ? null : Model.Name))" />
+
+<form asp-action="EditCertification" method="post" class="admin-form" data-dirty-guard>
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Certification</h2>
+            <p>A verification link lets visitors check it themselves.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="Name" class="form-label">Name <span class="req">Required</span></label>
+                <input asp-for="Name" class="form-control" maxlength="200" required />
+                <span asp-validation-for="Name" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Issuer" class="form-label"></label>
+                <input asp-for="Issuer" class="form-control" maxlength="200" placeholder="Anthropic" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="IssuedOn" class="form-label">Issued</label>
+                <input asp-for="IssuedOn" type="month" class="form-control" value="@Model.IssuedOn?.ToString("yyyy-MM", CultureInfo.InvariantCulture)" />
+                <span asp-validation-for="IssuedOn" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="CredentialId" class="form-label">Credential ID</label>
+                <input asp-for="CredentialId" class="form-control" maxlength="200" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="CredentialUrl" class="form-label">Verification URL</label>
+                <input asp-for="CredentialUrl" type="url" class="form-control" maxlength="500" placeholder="https://..." />
+                <div class="field-meta"></div>
+            </div>
+        </div>
+    </section>
+
+    <partial name="_OrderAndVisibility" model="Model" />
+    <partial name="_SaveBar" model="@(new SaveBarModel(listUrl, Model.Id == 0 ? "Create certification" : "Save certification"))" />
+</form>

@@ -1,0 +1,54 @@
+@model AdminNavViewModel
+@{
+    string? Current(bool on) => on ? "page" : null;
+    var action = Model.CurrentAction;
+}
+<nav class="side-nav" aria-label="Admin">
+    <ul>
+        <li>
+            <a asp-controller="Admin" asp-action="Index" aria-current="@Current(action == "Index")">
+                @AdminIcons.Get("dashboard")<span class="nav-label">Dashboard</span>
+            </a>
+        </li>
+        <li>
+            <a asp-controller="Activity" asp-action="Activity" aria-current="@Current(action == "Activity")">
+                @AdminIcons.Get("activity")<span class="nav-label">Activity</span>
+            </a>
+        </li>
+        <li>
+            <a asp-controller="Admin" asp-action="EditBio" aria-current="@Current(action == "EditBio")">
+                @AdminIcons.Get("user")<span class="nav-label">Bio &amp; CV</span>
+            </a>
+        </li>
+    </ul>
+    <p class="side-nav-heading" id="nav-content-heading">Content</p>
+    <ul aria-labelledby="nav-content-heading">
+        @foreach (var s in Model.Stats)
+        {
+            <li>
+                <a asp-controller="Admin" asp-action="List" asp-route-kind="@s.Section.Slug" aria-current="@Current(Model.CurrentSlug == s.Section.Slug)">
+                    @AdminIcons.Get(s.Section.Icon)<span class="nav-label">@s.Section.Title</span>
+                    <span class="nav-count">
+                        @s.Total<span class="visually-hidden"> items@(s.Hidden > 0 ? $", {s.Hidden} hidden" : "")</span>
+                    </span>
+                </a>
+            </li>
+        }
+    </ul>
+    <p class="side-nav-heading" id="nav-pages-heading">Pages</p>
+    <ul aria-labelledby="nav-pages-heading">
+        <li>
+            <a asp-controller="PrivacyAdmin" asp-action="PrivacyPolicy" aria-current="@Current(action == "PrivacyPolicy")">
+                @AdminIcons.Get("shield")<span class="nav-label">Privacy policy</span>
+            </a>
+        </li>
+    </ul>
+    <p class="side-nav-heading" id="nav-account-heading">Account</p>
+    <ul aria-labelledby="nav-account-heading">
+        <li>
+            <a asp-controller="Admin" asp-action="ChangePassword" aria-current="@Current(action == "ChangePassword")">
+                @AdminIcons.Get("key")<span class="nav-label">Password</span>
+            </a>
+        </li>
+    </ul>
+</nav>

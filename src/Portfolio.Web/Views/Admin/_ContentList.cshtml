@@ -1,0 +1,93 @@
+@model ContentListViewModel
+<section class="panel list-panel" id="@Model.Anchor" aria-labelledby="@(Model.Anchor)-heading">
+    <h2 id="@(Model.Anchor)-heading" class="visually-hidden">@Model.Title list</h2>
+    @if (!Model.Rows.Any())
+    {
+        <div class="empty-state">
+            <span class="empty-icon" aria-hidden="true">@AdminIcons.Get(Model.Icon)</span>
+            <p>No @Model.Title.ToLowerInvariant() yet.</p>
+            <a class="btn btn-accent btn-sm" asp-action="@Model.EditAction">@AdminIcons.Get("plus") @Model.AddLabel</a>
+        </div>
+    }
+    else
+    {
+        <table class="content-list">
+            <caption class="visually-hidden">@Model.Title, in the order shown on the site</caption>
+            <thead>
+                <tr>
+                    <th scope="col" class="col-handle"><span class="visually-hidden">Order</span></th>
+                    <th scope="col">Title</th>
+                    @foreach (var c in Model.Columns) { <th scope="col" class="col-extra">@c</th> }
+                    <th scope="col" class="col-visibility">Visibility</th>
+                    <th scope="col" class="col-actions"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            @* data-reorder-kind drives admin-lists.js; the token is read from the #reorder-token form. *@
+            <tbody data-reorder-kind="@Model.Kind" data-reorder-url="@Url.Action("Reorder", "Admin")">
+                @foreach (var r in Model.Rows)
+                {
+                    <tr data-id="@r.Id" draggable="true" class="@(r.IsPublished ? "" : "row-hidden")"
+                        data-published="@r.IsPublished.ToString().ToLowerInvariant()" data-title="@r.Title" data-search="@r.SearchText">
+                        <td class="col-handle">
+                            <span class="drag-handle" title="Drag to reorder">@AdminIcons.Get("grip")</span>
+                            <span class="move-group">
+                                <button type="button" class="btn-move" data-move="up">@AdminIcons.Get("chevron-up")<span class="visually-hidden">Move @r.Title up</span></button>
+                                <button type="button" class="btn-move" data-move="down">@AdminIcons.Get("chevron-down")<span class="visually-hidden">Move @r.Title down</span></button>
+                            </span>
+                        </td>
+                        <td class="col-title">
+                            <a class="row-title" asp-action="@Model.EditAction" asp-route-id="@r.Id">@r.Title</a>
+                            @if (!string.IsNullOrWhiteSpace(r.Subtitle)) { <div class="row-sub">@r.Subtitle</div> }
+                        </td>
+                        @for (var i = 0; i < r.Cells.Count; i++)
+                        {
+                            <td class="col-extra" data-label="@Model.Columns[i]">
+                                @if (Model.Columns[i] == "Featured" && r.Cells[i] != "")
+                                {
+                                    <span class="tag tag-accent">@AdminIcons.Get("star") Featured</span>
+                                }
+                                else
+                                {
+                                    @r.Cells[i]
+                                }
+                            </td>
+                        }
+                        <td class="col-visibility">
+                            <form asp-action="SetPublished" method="post" class="m-0" data-visibility-form>
+                                <input type="hidden" name="kind" value="@Model.Kind" />
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <input type="hidden" name="isPublished" value="@((!r.IsPublished).ToString().ToLowerInvariant())" />
+                                <button class="vis-toggle @(r.IsPublished ? "is-live" : "is-hidden")"
+                                        aria-label="@(r.IsPublished ? $"Live. Hide {r.Title} from the site" : $"Hidden. Show {r.Title} on the site")">
+                                    <span class="vis-dot" aria-hidden="true"></span><span class="vis-text">@(r.IsPublished ? "Live" : "Hidden")</span>
+                                </button>
+                            </form>
+                        </td>
+                        <td class="col-actions">
+                            <a class="btn btn-ghost btn-sm" asp-action="@Model.EditAction" asp-route-id="@r.Id">
+                                @AdminIcons.Get("edit")<span class="label-wide">Edit</span><span class="visually-hidden"> @r.Title</span>
+                            </a>
+                            <form asp-action="@Model.DeleteAction" method="post" class="d-inline"
+                                  data-confirm="“@r.Title” will be removed permanently. Use Hide instead to keep it without showing it on the site."
+                                  data-confirm-title="Delete this @AdminOverview.Section(Model.Kind).Singular?">
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <button class="btn btn-ghost btn-sm btn-danger-ghost">
+                                    @AdminIcons.Get("trash")<span class="visually-hidden">Delete @r.Title</span>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="list-empty-filter" data-list-empty hidden>Nothing matches your search.</p>
+        @* Filled by admin-lists.js when the list is longer than a page; without JS every row is shown. *@
+        <nav class="list-pager" data-list-pager aria-label="@Model.Title pages" hidden>
+            <button type="button" class="btn btn-ghost btn-sm" data-page="prev">← Previous</button>
+            <span class="list-pager-status" data-page-status aria-live="polite"></span>
+            <button type="button" class="btn btn-ghost btn-sm" data-page="next">Next →</button>
+        </nav>
+        @* Visible progress line for admin-lists.js; announcements go through the toast live regions. *@
+        <p class="reorder-status" aria-hidden="true"></p>
+    }
+</section>

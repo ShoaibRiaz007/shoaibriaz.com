@@ -1,0 +1,344 @@
+@model Project
+@using Portfolio.Application.Facades
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = isNew ? "New project" : "Edit project";
+    ViewData["ListSlug"] = "projects";
+    var listUrl = Url.Action("List", new { kind = "projects" })!;
+    var media = ViewBag.Media as List<ProjectMedia> ?? new();
+    var hasCover = !string.IsNullOrWhiteSpace(Model.ImageUrl);
+
+    // What a finished case study has; drives the step guide and the checklist.
+    var basicsDone = !string.IsNullOrWhiteSpace(Model.Title) && !string.IsNullOrWhiteSpace(Model.Summary);
+    var storyDone = new[] { Model.Description, Model.Highlights, Model.Challenge, Model.Solution, Model.Outcome }.Any(t => !string.IsNullOrWhiteSpace(t));
+    var detailsDone = !string.IsNullOrWhiteSpace(Model.TechStack);
+    var mediaDone = media.Count > 0 && hasCover;
+    var steps = new (string Id, string Label, bool Done)[]
+    {
+        ("basics", "Basics", !isNew && basicsDone), ("story", "Case study", !isNew && storyDone),
+        ("details", "Details & links", !isNew && detailsDone), ("media", "Media", mediaDone),
+    };
+    var checklist = new (bool Done, string Text)[]
+    {
+        (basicsDone, "A title and a one-line summary"),
+        (hasCover, "A cover image"),
+        (media.Count > 0, "At least one screenshot or video"),
+        (storyDone, "Some of the case study (any of its sections)"),
+        (detailsDone, "The tech stack"),
+        (Model.IsPublished, "Visible on the site"),
+    };
+    var ready = checklist.Count(c => c.Done);
+}
+<partial name="_EditHeader" model="@(new EditPageHeader("Projects", listUrl, (string)ViewData["Title"]!, isNew ? "Four short steps. Fill in the basics and create it; screenshots and videos come right after." : Model.Title))" />
+
+<nav class="step-rail" aria-label="Steps">
+    <ol>
+        @for (var i = 0; i < steps.Length; i++)
+        {
+            var s = steps[i];
+            var locked = isNew && s.Id == "media";
+            <li class="step @(s.Done ? "is-done" : "") @(locked ? "is-locked" : "")">
+                <a href="#@s.Id" aria-disabled="@(locked ? "true" : null)">
+                    <span class="step-num" aria-hidden="true">@if (s.Done) { @AdminIcons.Get("check") } else { @(i + 1) }</span>
+                    <span class="step-label">@s.Label</span>
+                    @if (s.Done) { <span class="visually-hidden">(done)</span> }
+                    @if (locked) { <span class="step-note">after you create it</span> }
+                </a>
+            </li>
+        }
+    </ol>
+    @if (!isNew && Model.IsPublished)
+    {
+        <a class="btn btn-ghost btn-sm" href="/project/@Model.Slug" target="_blank" rel="noopener">@AdminIcons.Get("external") View on site</a>
+    }
+</nav>
+
+@if (!isNew)
+{
+    <section class="panel readiness" aria-labelledby="ready-heading">
+        <div class="readiness-head">
+            <h2 id="ready-heading">@(ready == checklist.Length ? "Ready to show" : "Before it's ready")</h2>
+            <span class="readiness-count">@ready of @checklist.Length</span>
+        </div>
+        <ul class="readiness-list">
+            @foreach (var (done, text) in checklist)
+            {
+                <li class="@(done ? "is-done" : "")">
+                    <span class="readiness-mark" aria-hidden="true">@(done ? AdminIcons.Get("check") : AdminIcons.Get("alert"))</span>
+                    @text<span class="visually-hidden">@(done ? " (done)" : " (missing)")</span>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+<form asp-action="EditProject" method="post" class="admin-form" data-dirty-guard id="project-form">
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+    @* What the cover link held when the page loaded: saving without touching it leaves the stored cover alone. *@
+    <input type="hidden" name="originalImageUrl" value="@(ViewData["originalImageUrl"] as string ?? Model.ImageUrl)" />
+
+    <section class="form-section" id="basics">
+        <div class="form-section-head">
+            <h2><span class="section-step">1</span> Basics</h2>
+            <p>What visitors see first: the project card, the home page and the 3D world. The preview updates as you type.</p>
+        </div>
+        <div class="basics-layout">
+            <div class="form-grid">
+                <div class="field span-2">
+                    <label asp-for="Title" class="form-label">Title <span class="req">Required</span></label>
+                    <input asp-for="Title" class="form-control" maxlength="200" required data-preview-text="title" />
+                    <span asp-validation-for="Title" class="field-error"></span>
+                </div>
+                <div class="field span-2">
+                    <label asp-for="Summary" class="form-label"></label>
+                    <input asp-for="Summary" class="form-control" maxlength="500" aria-describedby="Summary-help" data-preview-text="summary"
+                           placeholder="AI-assisted level pipeline that cut production time by 70–80%." />
+                    <div class="field-meta"><span class="field-help" id="Summary-help">One sentence for the card. Say what it is and why it mattered.</span></div>
+                </div>
+                <div class="field">
+                    <label asp-for="Category" class="form-label"></label>
+                    <input asp-for="Category" class="form-control" maxlength="100" placeholder="AI / LLM" aria-describedby="Category-help" list="category-suggestions" data-preview-text="category" />
+                    <datalist id="category-suggestions">
+                        <option value="AI / LLM"></option><option value="AI / Tooling"></option><option value=".NET / Desktop"></option>
+                        <option value="Backend / API"></option><option value="Unity / Games"></option><option value="AR/VR"></option>
+                    </datalist>
+                    <div class="field-meta"><span class="field-help" id="Category-help">Puts it under a filter on the Work page.</span></div>
+                </div>
+                <div class="field">
+                    <label asp-for="Metric" class="form-label">Headline result</label>
+                    <input asp-for="Metric" class="form-control" placeholder="70–80% faster level production" maxlength="120" aria-describedby="Metric-help" data-preview-text="metric" />
+                    <div class="field-meta"><span class="field-help" id="Metric-help">One short proof point, with a number if you have one.</span></div>
+                </div>
+                <div class="field span-2">
+                    <div class="switch-field">
+                        <input asp-for="IsFeatured" class="switch-input" role="switch" aria-describedby="IsFeatured-help" />
+                        <label asp-for="IsFeatured" class="switch-label">Featured on the home page</label>
+                    </div>
+                    <p class="field-help" id="IsFeatured-help">The home page highlights up to 6 live featured projects, and needs at least 3.</p>
+                </div>
+            </div>
+            <aside class="card-preview" aria-label="Card preview">
+                <p class="card-preview-label">Card preview</p>
+                <div class="card-preview-card">
+                    <div class="card-preview-media">
+                        <img src="@(hasCover ? Model.ImageUrl : null)" alt="" hidden="@(!hasCover)" data-preview-cover />
+                        <span class="card-preview-empty" hidden="@hasCover">@AdminIcons.Get("image") Cover image</span>
+                    </div>
+                    <div class="card-preview-body">
+                        <span class="card-preview-kicker" data-preview="category">@Model.Category</span>
+                        <strong class="card-preview-title" data-preview="title" data-empty="Project title">@(string.IsNullOrWhiteSpace(Model.Title) ? "Project title" : Model.Title)</strong>
+                        <span class="card-preview-metric" data-preview="metric">@Model.Metric</span>
+                        <span class="card-preview-summary" data-preview="summary" data-empty="Your one-line summary appears here.">@(string.IsNullOrWhiteSpace(Model.Summary) ? "Your one-line summary appears here." : Model.Summary)</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    <section class="form-section" id="story">
+        <div class="form-section-head">
+            <h2><span class="section-step">2</span> Case study</h2>
+            <p>The project page. Every field is optional and empty ones are left out, so write as much or as little as you like. Short paragraphs read best: one per line.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field span-2">
+                <label asp-for="Highlights" class="form-label">Key highlights</label>
+                <textarea asp-for="Highlights" class="form-control" rows="4" maxlength="5000" aria-describedby="Highlights-help"
+                          placeholder="Cut level production from 5–15 days to 1–5 days&#10;Shipped to production in 3 months"></textarea>
+                <div class="field-meta"><span class="field-help" id="Highlights-help">One achievement per line; shown as a bullet list at the top.</span></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Description" class="form-label">Overview</label>
+                <textarea asp-for="Description" class="form-control" rows="4" maxlength="10000" aria-describedby="Description-help"></textarea>
+                <div class="field-meta"><span class="field-help" id="Description-help">What it is, who it's for, and your part in it.</span></div>
+                <span asp-validation-for="Description" class="field-error"></span>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Challenge" class="form-label">The challenge</label>
+                <textarea asp-for="Challenge" class="form-control" rows="3" maxlength="10000" aria-describedby="Challenge-help"></textarea>
+                <div class="field-meta"><span class="field-help" id="Challenge-help">The problem or constraint that made it hard.</span></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Solution" class="form-label">What I built</label>
+                <textarea asp-for="Solution" class="form-control" rows="3" maxlength="10000" aria-describedby="Solution-help"></textarea>
+                <div class="field-meta"><span class="field-help" id="Solution-help">The approach and the interesting technical decisions.</span></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Outcome" class="form-label"></label>
+                <textarea asp-for="Outcome" class="form-control" rows="3" maxlength="10000" aria-describedby="Outcome-help"></textarea>
+                <div class="field-meta"><span class="field-help" id="Outcome-help">What changed because of it: numbers, adoption, feedback.</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section" id="details">
+        <div class="form-section-head">
+            <h2><span class="section-step">3</span> Details &amp; links</h2>
+            <p>The facts shown beside the story, and where people can see the work.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="MyRole" class="form-label">My role</label>
+                <input asp-for="MyRole" class="form-control" maxlength="200" placeholder="Senior engineer, owned the pipeline" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="Timeline" class="form-label">When</label>
+                <input asp-for="Timeline" class="form-control" maxlength="100" placeholder="Jan 2026 – May 2026" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="TechStack" class="form-label">Tech stack</label>
+                <input asp-for="TechStack" class="form-control" maxlength="500" placeholder="Unity, C#, Firebase" aria-describedby="TechStack-help" />
+                <div class="field-meta"><span class="field-help" id="TechStack-help">Comma-separated; the first four show on the card.</span></div>
+            </div>
+            <div class="field">
+                <label asp-for="ProjectUrl" class="form-label">Live project URL</label>
+                <input asp-for="ProjectUrl" class="form-control" maxlength="500" placeholder="https://..." />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="GitHubUrl" class="form-label">Source code URL</label>
+                <input asp-for="GitHubUrl" class="form-control" maxlength="500" placeholder="https://github.com/..." />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="Slug" class="form-label">Page address</label>
+                <input asp-for="Slug" class="form-control" maxlength="200" placeholder="made from the title" aria-describedby="Slug-help" />
+                <div class="field-meta"><span class="field-help" id="Slug-help">/project/your-address</span></div>
+            </div>
+            <div class="field span-2">
+                <details class="cover-link" open="@(hasCover && !media.Any(m => m.Url == Model.ImageUrl) ? "open" : null)">
+                    <summary>Cover image from a link</summary>
+                    <p class="field-help">Usually you pick the cover from the gallery in step 4. Paste a link here only for an image hosted elsewhere.</p>
+                    <div class="url-preview-row">
+                        <img id="cover-preview" class="url-preview" alt="Cover image preview" hidden />
+                        <input asp-for="ImageUrl" class="form-control" maxlength="500" placeholder="https://..." data-url-preview="#cover-preview" aria-label="Cover image URL" />
+                    </div>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <partial name="_OrderAndVisibility" model="Model" />
+    <partial name="_SaveBar" model="@(new SaveBarModel(listUrl, isNew ? "Create project and add media →" : "Save project"))" />
+</form>
+
+<section class="panel media-panel" id="media" aria-labelledby="media-heading">
+    <div class="panel-head">
+        <div>
+            <h2 id="media-heading"><span class="section-step">4</span> Media</h2>
+            <p class="panel-sub">Screenshots and videos for the project page. Order them the way you want them seen, give each a short caption, and star one image as the cover.</p>
+        </div>
+        @if (media.Count > 0) { <span class="media-count">@media.Count item@(media.Count == 1 ? "" : "s")</span> }
+    </div>
+
+    @if (isNew)
+    {
+        <p class="empty-note">Create the project first (the button below the form), then add screenshots and videos here.</p>
+    }
+    else
+    {
+        <div class="upload-grid">
+            <form asp-action="UploadMedia" method="post" enctype="multipart/form-data" class="upload-card upload-card-wide" data-upload-form>
+                <h3>Upload screenshots and videos</h3>
+                <input type="hidden" name="projectId" value="@Model.Id" />
+                <div class="dropzone" data-dropzone data-max-mb="150">
+                    <input type="file" name="files" id="media-files" class="dz-input" accept="image/*,video/*" multiple required aria-describedby="media-files-hint" />
+                    <label for="media-files" class="dz-label">
+                        @AdminIcons.Get("upload", "dz-icon")
+                        <span class="dz-title">Drop files here or <u>browse</u></span>
+                        <span class="dz-hint" id="media-files-hint">Select several at once. Images: jpg, png, webp, gif · Video: mp4, webm, mov · up to 150&nbsp;MB per upload</span>
+                    </label>
+                    <div class="dz-preview" hidden>
+                        <img class="dz-thumb" alt="Selected file preview" hidden />
+                        <span class="dz-name"></span>
+                        <button type="button" class="link-btn" data-dz-clear>Clear</button>
+                    </div>
+                    <ul class="dz-list" hidden></ul>
+                    <p class="dz-error" hidden></p>
+                </div>
+                <button class="btn btn-accent btn-sm" data-upload-button>@AdminIcons.Get("upload") <span data-upload-label>Upload</span></button>
+            </form>
+            <form asp-action="AddEmbed" method="post" class="upload-card">
+                <h3>Add a YouTube or Vimeo video</h3>
+                <input type="hidden" name="projectId" value="@Model.Id" />
+                <label for="embed-url" class="form-label">Video link</label>
+                <input type="url" name="embedUrl" id="embed-url" class="form-control" placeholder="https://youtu.be/..." required />
+                <label for="embed-caption" class="form-label">Caption <span class="opt">optional</span></label>
+                <input type="text" name="caption" id="embed-caption" class="form-control" maxlength="@AdminContentFacade.MaxCaptionLength" />
+                <button class="btn btn-accent btn-sm">@AdminIcons.Get("plus") Add video</button>
+            </form>
+        </div>
+
+        @if (!media.Any())
+        {
+            <p class="empty-note media-empty">Nothing here yet.@(hasCover ? " The cover comes from a link (step 3); star an uploaded image to use it instead." : " The first image you upload becomes the cover; you can change it any time.")</p>
+        }
+        else
+        {
+            <ol class="media-grid">
+                @for (var i = 0; i < media.Count; i++)
+                {
+                    var m = media[i];
+                    var isCover = hasCover && m.MediaType == "image" && m.Url == Model.ImageUrl;
+                    var kind = m.MediaType switch { "image" => "Image", "video" => "Video", _ => "Video link" };
+                    var label = string.IsNullOrWhiteSpace(m.Caption) ? $"{kind} {i + 1}" : m.Caption;
+                    <li class="media-tile @(isCover ? "is-cover" : "")">
+                        <div class="media-thumb">
+                            @if (m.MediaType == "image")
+                            {
+                                <img src="@m.Url" alt="@label" loading="lazy" />
+                            }
+                            else if (m.MediaType == "video")
+                            {
+                                <video src="@(m.Url)#t=0.5" muted preload="metadata" aria-label="@label"></video>
+                            }
+                            else
+                            {
+                                <span class="media-embed" aria-hidden="true">@AdminIcons.Get("video")</span>
+                            }
+                            <span class="media-badge">@kind</span>
+                            @if (isCover) { <span class="media-badge media-badge-cover">@AdminIcons.Get("star") Cover</span> }
+                        </div>
+                        <form asp-action="UpdateMediaCaption" method="post" class="media-caption-form" data-caption-form>
+                            <input type="hidden" name="projectId" value="@Model.Id" />
+                            <input type="hidden" name="mediaId" value="@m.Id" />
+                            <label class="visually-hidden" for="caption-@m.Id">Caption for @label</label>
+                            <input type="text" id="caption-@m.Id" name="caption" value="@m.Caption" maxlength="@AdminContentFacade.MaxCaptionLength" class="form-control form-control-sm" placeholder="Add a caption" />
+                            <button class="btn btn-ghost btn-sm" title="Save caption">@AdminIcons.Get("check")<span class="visually-hidden">Save caption for @label</span></button>
+                        </form>
+                        <div class="media-actions">
+                            <form asp-action="MoveMedia" method="post">
+                                <input type="hidden" name="projectId" value="@Model.Id" />
+                                <input type="hidden" name="mediaId" value="@m.Id" />
+                                <input type="hidden" name="offset" value="-1" />
+                                <button class="btn btn-ghost btn-sm" disabled="@(i == 0)" title="Move earlier">@AdminIcons.Get("arrow-left")<span class="visually-hidden">Move @label earlier</span></button>
+                            </form>
+                            <form asp-action="MoveMedia" method="post">
+                                <input type="hidden" name="projectId" value="@Model.Id" />
+                                <input type="hidden" name="mediaId" value="@m.Id" />
+                                <input type="hidden" name="offset" value="1" />
+                                <button class="btn btn-ghost btn-sm" disabled="@(i == media.Count - 1)" title="Move later">@AdminIcons.Get("arrow-right")<span class="visually-hidden">Move @label later</span></button>
+                            </form>
+                            @if (m.MediaType == "image" && !isCover)
+                            {
+                                <form asp-action="SetCover" method="post">
+                                    <input type="hidden" name="projectId" value="@Model.Id" />
+                                    <input type="hidden" name="mediaId" value="@m.Id" />
+                                    <button class="btn btn-ghost btn-sm" title="Use as cover">@AdminIcons.Get("star")<span class="visually-hidden">Use @label as the cover</span></button>
+                                </form>
+                            }
+                            <form asp-action="DeleteMedia" method="post" class="media-remove" data-confirm="@(isCover ? "It's the cover, so the image after it (or before it, if it's the last) becomes the cover." : "It will be removed from the gallery.")" data-confirm-title="Remove this @kind.ToLowerInvariant()?" data-confirm-action="Remove">
+                                <input type="hidden" name="id" value="@m.Id" />
+                                <input type="hidden" name="projectId" value="@Model.Id" />
+                                <button class="btn btn-ghost btn-sm btn-danger-ghost" title="Remove">@AdminIcons.Get("trash")<span class="visually-hidden">Remove @label</span></button>
+                            </form>
+                        </div>
+                    </li>
+                }
+            </ol>
+        }
+    }
+</section>

@@ -1,0 +1,40 @@
+@model Testimonial
+@{
+    ViewData["Title"] = Model.Id == 0 ? "New testimonial" : "Edit testimonial";
+    ViewData["ListSlug"] = "testimonials";
+    var listUrl = Url.Action("List", new { kind = "testimonials" })!;
+}
+<partial name="_EditHeader" model="@(new EditPageHeader("Testimonials", listUrl, (string)ViewData["Title"]!, Model.Id == 0 ? null : Model.Author))" />
+
+<form asp-action="EditTestimonial" method="post" class="admin-form" data-dirty-guard>
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Testimonial</h2>
+            <p>Who said it, and what they said.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="Author" class="form-label">Author <span class="req">Required</span></label>
+                <input asp-for="Author" class="form-control" maxlength="200" required />
+                <span asp-validation-for="Author" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="AuthorTitle" class="form-label">Author's title</label>
+                <input asp-for="AuthorTitle" class="form-control" maxlength="300" placeholder="CTO, Company" />
+                <div class="field-meta"></div>
+            </div>
+            <div class="field span-2">
+                <label asp-for="Quote" class="form-label"></label>
+                <textarea asp-for="Quote" class="form-control" rows="5" maxlength="5000"></textarea>
+                <div class="field-meta"></div>
+                <span asp-validation-for="Quote" class="field-error"></span>
+            </div>
+        </div>
+    </section>
+
+    <partial name="_OrderAndVisibility" model="Model" />
+    <partial name="_SaveBar" model="@(new SaveBarModel(listUrl, Model.Id == 0 ? "Create testimonial" : "Save testimonial"))" />
+</form>

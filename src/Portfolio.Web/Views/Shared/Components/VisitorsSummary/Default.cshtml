@@ -1,0 +1,7 @@
+@model Portfolio.Application.Models.VisitorSummary
+<a class="stat-card" asp-controller="Activity" asp-action="Activity">
+    <span class="stat-icon">@AdminIcons.Get("activity")</span>
+    <span class="stat-title">Visitors (@Model.Days days)</span>
+    <span class="stat-value">@ActivityViewModel.Number(Model.UniqueVisitors)</span>
+    <span class="stat-meta">@ActivityViewModel.Number(Model.PageViews) page views</span>
+</a>

@@ -1,0 +1,104 @@
+@using Portfolio.Controllers
+@{
+    // The admin shell (sidebar, top bar) is for signed-in admins only; the login and error pages get a bare canvas.
+    // The error page opts out explicitly: the sidebar queries the database, which may be what just failed.
+    var isAdmin = ViewData["BareLayout"] is not true && (User?.IsInRole("Admin") ?? false);
+    var flash = TempData["Message"] as string;
+    var flashType = TempData[AdminController.MessageTypeKey] as string == "error" ? "error" : "success";
+}
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@ViewData["Title"] · Admin</title>
+    @* Same saved light/dark choice as the public site, applied before first paint. *@
+    <script src="~/js/theme.js" asp-append-version="true"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+</head>
+<body class="admin-body @(isAdmin ? "has-shell" : "auth-body")">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    @if (isAdmin)
+    {
+        <div class="shell">
+            <aside id="admin-sidebar" class="sidebar" aria-label="Admin sections">
+                <div class="sidebar-head">
+                    <a class="brand" asp-controller="Admin" asp-action="Index">
+                        <span class="brand-mark" aria-hidden="true">SR</span>
+                        <span class="brand-text">Portfolio <span>admin</span></span>
+                    </a>
+                    <button type="button" class="icon-btn sidebar-close" data-sidebar-close>
+                        @AdminIcons.Get("close")<span class="visually-hidden">Close menu</span>
+                    </button>
+                </div>
+                @await Component.InvokeAsync("AdminNav")
+            </aside>
+            <div class="sidebar-scrim" data-sidebar-close hidden></div>
+
+            <div class="shell-main">
+                <header class="topbar">
+                    <button type="button" class="icon-btn sidebar-toggle" data-sidebar-toggle aria-controls="admin-sidebar" aria-expanded="false">
+                        @AdminIcons.Get("menu")<span class="visually-hidden">Open menu</span>
+                    </button>
+                    <span class="topbar-title">@ViewData["Title"]</span>
+                    <div class="topbar-actions">
+                        <a class="btn btn-ghost btn-sm" asp-controller="Home" asp-action="Index" target="_blank" rel="noopener">
+                            @AdminIcons.Get("external")<span class="label-wide">View site</span><span class="visually-hidden"> (opens in a new tab)</span>
+                        </a>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                            <button type="submit" class="btn btn-ghost btn-sm">
+                                @AdminIcons.Get("logout")<span class="label-wide">Log out</span>
+                            </button>
+                        </form>
+                    </div>
+                </header>
+                <main id="main" class="content" tabindex="-1">
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+    }
+    else
+    {
+        <main id="main" class="auth-main" tabindex="-1">
+            @RenderBody()
+        </main>
+    }
+
+    @* Toasts: the visible stack is aria-hidden; screen readers hear the text through the two live regions,
+       which exist from page load so later insertions are announced. *@
+    <div class="toast-stack" id="toast-stack"></div>
+    <div class="visually-hidden" id="toast-polite" role="status" aria-live="polite"></div>
+    <div class="visually-hidden" id="toast-assertive" role="alert" aria-live="assertive"></div>
+    @if (flash is not null)
+    {
+        <div id="flash-message" data-type="@flashType" hidden>@flash</div>
+        <noscript><div class="flash-fallback flash-@flashType">@flash</div></noscript>
+    }
+
+    @* Shared confirmation for destructive forms (data-confirm), opened by admin.js. Cancel is the default focus. *@
+    <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+        <form method="dialog" asp-antiforgery="false">
+            <div class="confirm-icon" aria-hidden="true">@AdminIcons.Get("trash")</div>
+            <h2 id="confirm-title">Delete this item?</h2>
+            <p id="confirm-message"></p>
+            <div class="confirm-actions">
+                <button type="submit" value="cancel" class="btn btn-ghost" autofocus>Cancel</button>
+                <button type="submit" value="confirm" class="btn btn-danger" id="confirm-ok">Delete</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/js/admin.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

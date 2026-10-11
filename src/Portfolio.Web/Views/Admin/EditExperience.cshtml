@@ -1,0 +1,90 @@
+@model Experience
+@{
+    ViewData["Title"] = Model.Id == 0 ? "New role" : "Edit role";
+    ViewData["ListSlug"] = "experience";
+    var listUrl = Url.Action("List", new { kind = "experience" })!;
+}
+<partial name="_EditHeader" model="@(new EditPageHeader("Experience", listUrl, (string)ViewData["Title"]!, Model.Id == 0 ? null : $"{Model.Role} · {Model.Company}"))" />
+
+<form asp-action="EditExperience" method="post" class="admin-form" data-dirty-guard>
+    <div asp-validation-summary="ModelOnly" class="form-alert" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Role</h2>
+            <p>Consecutive roles at the same company are grouped on the site as promotions.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="Role" class="form-label">Job title <span class="req">Required</span></label>
+                <input asp-for="Role" class="form-control" maxlength="200" required />
+                <span asp-validation-for="Role" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Company" class="form-label">Company <span class="req">Required</span></label>
+                <input asp-for="Company" class="form-control" maxlength="200" required aria-describedby="Company-help" />
+                <div class="field-meta"><span class="field-help" id="Company-help">Roles at the same company group together on the site (spacing and capital letters don't matter).</span></div>
+            </div>
+            <div class="field">
+                <label asp-for="EmploymentType" class="form-label">Employment type</label>
+                <input asp-for="EmploymentType" class="form-control" maxlength="100" placeholder="Full-time" list="employment-types" />
+                <datalist id="employment-types">
+                    <option value="Full-time"></option><option value="Part-time"></option>
+                    <option value="Contract"></option><option value="Freelance"></option><option value="Internship"></option>
+                </datalist>
+                <div class="field-meta"></div>
+            </div>
+            <div class="field">
+                <label asp-for="Location" class="form-label"></label>
+                <input asp-for="Location" class="form-control" maxlength="200" placeholder="Lahore, Pakistan · Hybrid" />
+                <div class="field-meta"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Dates</h2>
+            <p>Month precision. The period text on the site is generated from these.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="StartDate" class="form-label">Start month @if (Model.StartDate is not null || string.IsNullOrWhiteSpace(Model.Period)) { <span class="req">Required</span> }</label>
+                <input asp-for="StartDate" type="month" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM", CultureInfo.InvariantCulture)"
+                       required="@(Model.StartDate is not null || string.IsNullOrWhiteSpace(Model.Period))" />
+                <span asp-validation-for="StartDate" class="field-error"></span>
+            </div>
+            <div class="field">
+                <label asp-for="EndDate" class="form-label">End month</label>
+                <input asp-for="EndDate" type="month" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM", CultureInfo.InvariantCulture)" aria-describedby="EndDate-help" />
+                <div class="field-meta"><span class="field-help" id="EndDate-help">Leave empty if you still work here (“Present”).</span></div>
+                <span asp-validation-for="EndDate" class="field-error"></span>
+            </div>
+            @if (Model.StartDate is null && !string.IsNullOrWhiteSpace(Model.Period))
+            {
+                <div class="field span-2">
+                    <input type="hidden" asp-for="Period" />
+                    <p class="inline-note">@AdminIcons.Get("alert") Legacy period text: <strong>@Model.Period</strong>. Set the months above to replace it.</p>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="form-section">
+        <div class="form-section-head">
+            <h2>Highlights</h2>
+            <p>What you achieved, shown as bullet points.</p>
+        </div>
+        <div class="form-grid">
+            <div class="field span-2">
+                <label asp-for="Description" class="form-label">Highlights</label>
+                <textarea asp-for="Description" class="form-control" rows="8" maxlength="5000" aria-describedby="Description-help"></textarea>
+                <div class="field-meta"><span class="field-help" id="Description-help">One bullet point per line.</span></div>
+            </div>
+        </div>
+    </section>
+
+    <partial name="_OrderAndVisibility" model="Model" />
+    <partial name="_SaveBar" model="@(new SaveBarModel(listUrl, Model.Id == 0 ? "Create role" : "Save role"))" />
+</form>

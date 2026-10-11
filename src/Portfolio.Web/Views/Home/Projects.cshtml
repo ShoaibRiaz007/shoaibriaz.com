@@ -1,0 +1,54 @@
+@model ProjectsViewModel
+@{
+    Layout = "_SiteLayout";
+    var counts = Model.Projects.GroupBy(PublicSite.AreaOf).ToDictionary(g => g.Key, g => g.Count());
+    var shown = Model.Area is null ? Model.Projects.Count : counts.GetValueOrDefault(Model.Area);
+    // Cards read this to start hidden when outside the ?area= pick.
+    ViewData["Area"] = Model.Area;
+}
+<section class="page-hero">
+    <div class="container">
+        <span class="kicker">Work</span>
+        <h1>Projects</h1>
+        <p>AI/LLM features, .NET backends and desktop add-ins, and the Unity and XR products I've shipped along the way.</p>
+    </div>
+</section>
+
+<section class="container" aria-label="Project list">
+    <div class="toolbar">
+        @* Links rather than buttons, so a filter works without JS and can be shared; public.js upgrades them
+           to filter in place and keeps ?area= in the URL. *@
+        <nav class="filter-group" aria-label="Filter by area">
+            <a class="filter-btn" href="/projects" data-filter="all" aria-current="@(Model.Area is null ? "true" : null)">
+                All <span class="filter-count">@Model.Projects.Count</span>
+            </a>
+            @foreach (var area in PublicSite.Areas.Where(counts.ContainsKey))
+            {
+                var slug = PublicSite.AreaSlug(area);
+                <a class="filter-btn" href="/projects?area=@slug" data-filter="@slug" aria-current="@(Model.Area == area ? "true" : null)">
+                    <span class="filter-glyph"><partial name="_AreaGlyph" model="slug" /></span>
+                    @area <span class="filter-count">@counts[area]</span>
+                </a>
+            }
+        </nav>
+        <div class="search-wrap">
+            <label class="visually-hidden" for="projectSearch">Search projects</label>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input id="projectSearch" class="search" type="search" placeholder="Search projects or tech…" autocomplete="off" />
+        </div>
+    </div>
+    <p class="muted small-note" id="projectCount" role="status" aria-live="polite">@shown @(shown == 1 ? "project" : "projects")</p>
+    <div class="project-grid" id="projectGrid">
+        @foreach (var p in Model.Projects) { <partial name="_ProjectCard" model="p" /> }
+    </div>
+    @* Every card is in the page (search engines and no-JS visitors see them all); public.js shows them a dozen at a time. *@
+    <div class="load-more" id="projectMore" hidden>
+        <button type="button" class="btn btn-ghost">Show more projects</button>
+    </div>
+    <div class="empty" id="projectEmpty" hidden="@(shown > 0)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M8.5 11h5"/></svg>
+        <p><strong>No projects match.</strong></p>
+        <p class="muted">Try another area or a broader search term.</p>
+        <a class="btn btn-ghost btn-sm" href="/projects" data-clear>Clear filters</a>
+    </div>
+</section>
