@@ -44,11 +44,12 @@ scripts/                     one-off SQL scripts
 ## Motion
 
 The public pages animate through a small declarative system. Markup asks for motion with data attributes;
-`wwwroot/css/site-v2.css` says how things look, `wwwroot/css/motion.css` how they move, and `wwwroot/js/motion.js`
-applies the attributes. For example, `data-enter="card"` makes a block rise in once when it comes into view,
+`wwwroot/css/site-v2.css` says how things look (and holds the shared timing tokens), `wwwroot/css/motion.css` how
+they move, and `wwwroot/js/motion.js` applies the attributes. For example, `data-enter="card"` makes a block rise in once when it comes into view,
 `data-stagger` on its container makes siblings follow each other, and `data-pointer="glow"` adds a light that
 follows the mouse. The full vocabulary is at the top of `motion.js`. Scrolling stays native, content arrives once
-and stays, and everything is off when the visitor prefers reduced motion.
+and stays, and everything is off when the device asks for reduced motion or the visitor turns animations off with
+the footer switch. `MotionVocabularyTests` fails the build if a view uses a name the system doesn't define.
 
 ## Running locally
 

@@ -26,6 +26,19 @@
     --header-h: 72px;
     --header-h-min: 58px;   /* compact header, once the page has scrolled */
     --max: 1160px;
+    /* Motion tokens, shared by hover states here and by motion.css. */
+    --dur-fast: 160ms;
+    --dur-base: 320ms;
+    --dur-slow: 640ms;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);   /* arrivals: quick start, long soft settle */
+    --ease-std: cubic-bezier(.4, 0, .2, 1);    /* state changes */
+    --stagger: 80ms;                           /* between siblings arriving together */
+    --stagger-item: 45ms;                      /* between items inside a block */
+    --hero-dur: 700ms;                         /* the hero's on-load entrance */
+    --hero-step: 90ms;
+    --move-s: 10px;
+    --move-m: 24px;
+    --move-l: 48px;
     color-scheme: dark;
 }
 
@@ -250,11 +263,8 @@ main:focus { outline: none; }
 
 /* ---------- Hero ---------- */
 .hero { position: relative; padding: 104px 0 64px; isolation: isolate; }
-/* Soft light behind the hero; it follows the pointer (motion.css, data-pointer="spotlight"). */
-.hero::before {
-    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-    background: radial-gradient(520px circle at 20% 20%, var(--accent-soft), transparent 60%);
-}
+/* Its soft light follows the pointer: data-pointer="spotlight" (motion.css) paints it on the background. */
+.hero { --spot-size: 520px; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 56px; align-items: center; }
 .status {
     display: inline-flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; letter-spacing: .08em;
@@ -266,12 +276,11 @@ main:focus { outline: none; }
 .hero h1 .word { display: inline-block; margin-right: .22em; }
 .hero h1 .word:last-child {
     margin-right: 0;
-    /* The name's colours twice over with a highlight where the halves meet, shown from the second half. The sheen
-       (motion.css) moves from one half to the other, so the name looks the same before and after. */
-    background: linear-gradient(100deg,
-        var(--text) 5%, var(--accent) 30%, var(--accent-2) 46%,
-        color-mix(in srgb, var(--accent-2) 30%, #fff) 50%,
-        var(--text) 55%, var(--accent) 80%, var(--accent-2) 96%) 100% 0 / 200% 100%;
+    /* Two layers clipped to the letters: a light band (the sheen, moved by motion.css) that rests just off the
+       name at either end of its layer, over the name's own gradient, which never moves. */
+    background:
+        linear-gradient(100deg, transparent 40%, color-mix(in srgb, #fff 60%, transparent) 50%, transparent 60%) 100% 0 / 250% 100% no-repeat,
+        linear-gradient(100deg, var(--text) 10%, var(--accent) 60%, var(--accent-2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .hero .headline { font-size: clamp(18px, 2.4vw, 24px); font-weight: 700; color: var(--text); }
@@ -458,7 +467,8 @@ details.more[open] .when-open { display: inline; }
 .quote blockquote { margin: 0; font-size: 17px; line-height: 1.7; }
 .quote figcaption { margin-top: 16px; color: var(--text-dim); font-size: 14px; }
 .quote figcaption strong { color: var(--text); }
-.contact-band { padding: 40px; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; background: linear-gradient(120deg, var(--accent-soft), transparent 70%), var(--bg-raised); }
+.contact-band { padding: 40px; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; background: linear-gradient(120deg, var(--accent-soft), transparent 70%), var(--bg-raised);
+    --spot-under: linear-gradient(120deg, var(--accent-soft), transparent 70%); --spot-size: 420px; }
 .contact-band h2 { font-size: clamp(24px, 3vw, 32px); margin-top: 8px; }
 .contact-email { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 16px; }
 .contact-email a { font-weight: 700; font-size: 17px; text-decoration: none; overflow-wrap: anywhere; }
@@ -509,8 +519,6 @@ details.more[open] .when-open { display: inline; }
 .empty svg { width: 36px; height: 36px; color: var(--text-faint); margin-bottom: 6px; }
 .empty strong { color: var(--text); }
 .empty .btn { margin-top: 10px; }
-.empty:not([hidden]) { animation: fade-up .28s ease both; }
-@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (max-width: 640px) { .search-wrap { flex: 1 1 100%; } }
 
 /* ---------- Case study ---------- */
@@ -767,22 +775,22 @@ details.more[open] .when-open { display: inline; }
 /* ---------- Home: chapters (sections numbered in order, "01 ——", whichever ones the page has) ---------- */
 [data-progress] { counter-reset: chapter; }
 [data-progress] > .section :is(.section-head, .island-copy, .contact-band) .kicker::before {
-    counter-increment: chapter; content: counter(chapter, decimal-leading-zero);
+    counter-increment: chapter; content: counter(chapter, decimal-leading-zero); content: counter(chapter, decimal-leading-zero) / "";
     display: inline-block; padding-right: 46px; color: var(--text-faint); font-variant-numeric: tabular-nums;
     background: linear-gradient(var(--accent), var(--accent)) no-repeat right 10px center / 26px 1px;
-    transition: background-size var(--dur-slow, .64s) var(--ease-out, ease) 150ms;
+    transition: background-size var(--dur-slow) var(--ease-out) 150ms;
 }
 
 /* ---------- Home: section rail (a dot per section on wide screens, following the scroll) ---------- */
 .section-rail {
     position: fixed; right: 22px; top: 50%; translate: 0 -50%; z-index: 80;
-    opacity: 0; visibility: hidden; transition: opacity .32s, visibility .32s;
+    opacity: 0; visibility: hidden; transition: opacity var(--dur-base) var(--ease-std), visibility var(--dur-base);
 }
 .section-rail.show { opacity: 1; visibility: visible; }
 .section-rail ol { list-style: none; display: grid; gap: 14px; }
 .section-rail a {
     position: relative; display: block; width: 10px; height: 10px; border-radius: 999px; background: var(--border-strong);
-    transition: height .32s cubic-bezier(.16, 1, .3, 1), background .32s;
+    transition: height var(--dur-base) var(--ease-out), background .32s;
 }
 .section-rail a:hover, .section-rail a:focus-visible { background: var(--accent-2); }
 .section-rail a.is-active { height: 28px; background: var(--accent); }
@@ -790,7 +798,7 @@ details.more[open] .when-open { display: inline; }
     position: absolute; right: 22px; top: 50%; translate: 6px -50%; white-space: nowrap; pointer-events: none;
     font-size: 12px; font-weight: 700; color: var(--text); background: var(--bg-raised); border: 1px solid var(--border);
     padding: 4px 10px; border-radius: 6px; box-shadow: var(--shadow); opacity: 0;
-    transition: opacity .16s, translate .32s cubic-bezier(.16, 1, .3, 1);
+    transition: opacity var(--dur-fast) var(--ease-std), translate var(--dur-base) var(--ease-out);
 }
 .section-rail a:hover .rail-label, .section-rail a:focus-visible .rail-label { opacity: 1; translate: 0 -50%; }
 @media (max-width: 1279px) { .section-rail { display: none; } }
@@ -799,7 +807,7 @@ details.more[open] .when-open { display: inline; }
 .nav-indicator {
     position: absolute; left: 0; bottom: 2px; height: 2px; width: 1px; border-radius: 2px; background: var(--accent);
     transform-origin: 0 50%; opacity: 0; pointer-events: none;
-    transition: transform .32s cubic-bezier(.16, 1, .3, 1), opacity .16s;
+    transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-std);
 }
 @media (min-width: 981px) {
     .site-nav.has-indicator { position: relative; }
@@ -808,20 +816,20 @@ details.more[open] .when-open { display: inline; }
 @media (max-width: 980px) { .nav-indicator { display: none; } }
 /* Phones: the header tucks away while reading down and returns on the first scroll up (public.js). */
 @media (max-width: 860px) {
-    .site-header { transition: translate .32s cubic-bezier(.16, 1, .3, 1), box-shadow .2s; }
+    .site-header { transition: translate var(--dur-base) var(--ease-out), box-shadow .2s; }
     .site-header.tucked { translate: 0 -100%; }
 }
 
 /* ---------- Hover and touch feedback ---------- */
-.service .icon { display: inline-block; transition: transform .32s cubic-bezier(.16, 1, .3, 1); }
+.service .icon { display: inline-block; transition: transform var(--dur-base) var(--ease-out); }
 .service:hover .icon { transform: translateY(-4px) rotate(-8deg) scale(1.12); }
 .services .service:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
-.skill-group .chip { transition: transform .16s cubic-bezier(.16, 1, .3, 1), color .15s, border-color .15s; }
+.skill-group .chip { transition: transform var(--dur-fast) var(--ease-out), color .15s, border-color .15s; }
 .skill-group .chip:hover { transform: translateY(-3px); color: var(--accent); border-color: var(--accent); }
 /* Touch has no hover, so a press answers every tap on a card or button. */
 @media (hover: none) {
     .project-card, .island-teaser, .service, .skill-group, .btn, .filter-btn, .nf-link, .pager-link {
-        transition: transform .16s cubic-bezier(.16, 1, .3, 1), border-color .2s, box-shadow .2s;
+        transition: transform var(--dur-fast) var(--ease-out), border-color .2s, box-shadow .2s;
     }
     .project-card:active, .island-teaser:active, .service:active, .skill-group:active,
     .btn:active, .filter-btn:active, .nf-link:active, .pager-link:active { transform: scale(.97); }

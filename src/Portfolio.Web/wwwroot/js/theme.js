@@ -10,16 +10,40 @@
         if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
     } catch (e) { /* follow the OS theme */ }
 
-    // Motion off by choice (the footer switch, remembered) works like the device setting: no motion-on below.
-    var motionOff = false;
-    try { motionOff = localStorage.getItem('motion') === 'reduced'; } catch (e) { /* follow the device */ }
-    if (motionOff) root.setAttribute('data-motion', 'reduced');
+    // Motion off: one state for the whole site, html[data-motion="reduced"], set here for both causes (the device
+    // asks for reduced motion, or the visitor chose it with the footer switch, remembered), with
+    // data-motion-by saying which. Scripts read only that attribute; motion.css keys its motion-off rules on it
+    // too, with the device media query kept as the fallback for when JavaScript doesn't run. It follows a device
+    // setting change, the choice made in another tab, and a page restored from the back/forward cache. Turning
+    // off applies at once; turning back on reloads the page, since motion.js only sets up its effects on load.
+    var deviceReduced = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+    function chosenOff() {
+        // Storage unreadable: keep whatever was chosen on this page rather than treat it as no choice.
+        try { return localStorage.getItem('motion') === 'reduced'; } catch (e) { return root.getAttribute('data-motion-by') === 'choice'; }
+    }
+    var started = false;
+    function applyMotion() {
+        var byDevice = !!(deviceReduced && deviceReduced.matches), byChoice = chosenOff();
+        if (byDevice || byChoice) {
+            root.setAttribute('data-motion', 'reduced');
+            root.setAttribute('data-motion-by', byDevice ? 'device' : 'choice');
+            root.classList.remove('motion-on');   // nothing is left waiting to arrive
+        } else if (root.hasAttribute('data-motion')) {
+            if (started) { location.reload(); return; }
+            root.removeAttribute('data-motion');
+            root.removeAttribute('data-motion-by');
+        }
+    }
+    applyMotion();
+    started = true;
+    if (deviceReduced && deviceReduced.addEventListener) deviceReduced.addEventListener('change', applyMotion);
+    window.addEventListener('storage', function (e) { if (e.key === 'motion') applyMotion(); });
+    window.addEventListener('pageshow', function (e) { if (e.persisted) applyMotion(); });
 
     // Entrances are opt-in: content is visible by default, and [data-enter] blocks are only held back until
     // they arrive when motion is welcome and the browser can observe it. motion.js does the revealing and marks
     // 'motion-ready'; if it never runs (blocked, failed to load), drop the opt-in so nothing stays invisible.
-    if (!motionOff && 'IntersectionObserver' in window && window.matchMedia
-        && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+    if (!root.hasAttribute('data-motion') && 'IntersectionObserver' in window) {
         root.classList.add('motion-on');
         setTimeout(function () {
             if (!root.classList.contains('motion-ready')) root.classList.remove('motion-on');

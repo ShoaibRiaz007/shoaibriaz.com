@@ -1,12 +1,15 @@
 // Public site behaviour: theme toggle, header (compact on scroll, mobile menu, active section with a gliding
 // underline, tucked away on phones while scrolling down), section rail, back-to-top, reading progress, projects
-// filter, copy-email, gallery lightbox, the footer motion switch. Motion (entrances, pointer effects, scroll-linked animation) is motion.js.
+// filter, copy-email, gallery lightbox, the footer motion switch. Motion (entrances, pointer effects,
+// scroll-linked animation) is motion.js.
 // Every feature checks for its markup and does nothing when absent, so one file serves all pages.
 (function () {
     const root = document.documentElement;
-    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Motion is off when the device asks for it or the visitor switched it off (footer, see below).
-    const motionOff = () => reducedMotion || root.dataset.motion === 'reduced';
+    // Motion is off when theme.js says so (device setting or the footer switch, kept live there).
+    const motionOff = () => root.dataset.motion === 'reduced';
+    // Breakpoints, matching site-v2.css: the full header nav, and phone widths.
+    const wideNav = matchMedia('(min-width: 981px)');
+    const phone = matchMedia('(max-width: 860px)');
 
     // ---- Theme toggle ----
     const themeBtn = document.getElementById('themeToggle');
@@ -19,22 +22,26 @@
     });
 
     // ---- Motion switch (footer): off applies at once and is remembered; on reloads, so entrances and effects
-    //      start from a fresh page. Hidden when the device already asks for reduced motion. ----
+    //      start from a fresh page. Hidden while the device itself asks for reduced motion, since the switch
+    //      can't override that. Follows the state theme.js keeps, including changes made in other tabs. ----
     const motionBtn = document.getElementById('motionToggle');
-    if (motionBtn && !reducedMotion) {
-        const sync = () => motionBtn.setAttribute('aria-pressed', String(root.dataset.motion !== 'reduced'));   // pressed: animations on
-        motionBtn.hidden = false;
+    if (motionBtn) {
+        const sync = () => {
+            motionBtn.hidden = root.dataset.motionBy === 'device';
+            motionBtn.setAttribute('aria-pressed', String(!motionOff()));   // pressed: animations on
+        };
         sync();
+        new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ['data-motion', 'data-motion-by'] });
         motionBtn.addEventListener('click', () => {
-            if (root.dataset.motion === 'reduced') {
+            if (motionOff()) {
                 try { localStorage.removeItem('motion'); } catch (e) { /* on for this page only */ }
                 location.reload();
                 return;
             }
-            root.setAttribute('data-motion', 'reduced');
-            root.classList.remove('motion-on');   // nothing is left waiting to arrive
             try { localStorage.setItem('motion', 'reduced'); } catch (e) { /* off for this page only */ }
-            sync();
+            root.setAttribute('data-motion', 'reduced');
+            root.setAttribute('data-motion-by', 'choice');
+            root.classList.remove('motion-on');   // nothing is left waiting to arrive
         });
     }
 
@@ -56,8 +63,7 @@
         document.addEventListener('click', e => {
             if (isOpen() && !nav.contains(e.target) && !navBtn.contains(e.target)) setNav(false);
         });
-        // Must match the CSS breakpoint where the toggle disappears.
-        matchMedia('(min-width: 981px)').addEventListener('change', e => { if (e.matches) setNav(false); });
+        wideNav.addEventListener('change', e => { if (e.matches) setNav(false); });
     }
 
     // ---- Scroll-driven bits, one rAF-throttled handler: compact header, back-to-top, reading progress,
@@ -87,15 +93,17 @@
     // The home page's section rail appears once the hero is mostly scrolled past.
     const rail = document.querySelector('.section-rail');
 
-    function updateSpy({ items, within }) {
-        const line = (header?.offsetHeight || 0) + 120;
-        const atBottom = innerHeight + scrollY >= document.documentElement.scrollHeight - 4;
+    // Split in two so a frame does all its measuring before any of its writes (one layout per frame).
+    function measureSpy({ items, within }, line, atBottom) {
         let active = null;
         items.forEach(i => {
             const r = i.target.getBoundingClientRect();
             if (r.top <= line && (!within || r.bottom > line)) active = i;
         });
         if (atBottom && items[items.length - 1].target.getBoundingClientRect().top < innerHeight) active = items[items.length - 1];
+        return active;
+    }
+    function markSpy({ items }, active) {
         items.forEach(i => {
             i.link.classList.toggle('is-active', i === active);
             if (i === active) i.link.setAttribute('aria-current', 'location');
@@ -114,45 +122,55 @@
         nav.appendChild(indicator);
         nav.classList.add('has-indicator');
     }
-    let indicatorPlaced = false;
-    function moveIndicator() {
+    // Measured only when the active link changes, the window resizes or the web font arrives (which changes the
+    // links' widths); not on every scroll frame.
+    let indicatorPlaced = false, indicatorFor = null;
+    function moveIndicator(force) {
         if (!indicator) return;
-        const a = nav.querySelector('a.is-active, a[aria-current="page"]');
-        if (!a || innerWidth <= 980) { indicator.style.opacity = '0'; return; }
+        const a = wideNav.matches ? nav.querySelector('a.is-active, a[aria-current="page"]') : null;
+        if (a === indicatorFor && !force) return;
+        indicatorFor = a;
+        if (!a) { indicator.style.opacity = '0'; return; }
         if (!indicatorPlaced) { indicator.style.transition = 'none'; }
         indicator.style.transform = `translateX(${a.offsetLeft + 10}px) scaleX(${Math.max(1, a.offsetWidth - 20)})`;
         indicator.style.opacity = '1';
         if (!indicatorPlaced) { void indicator.offsetWidth; indicator.style.transition = ''; indicatorPlaced = true; }
     }
+    document.fonts?.ready.then(() => moveIndicator(true));
     let lastTuckY = scrollY;
     function tuckHeader(y) {
         if (!header || Math.abs(y - lastTuckY) < 6) return;
-        const tuck = innerWidth <= 860 && y > 240 && y > lastTuckY
+        const tuck = phone.matches && y > 240 && y > lastTuckY
             && !nav?.classList.contains('open') && !header.contains(document.activeElement);
         header.classList.toggle('tucked', tuck);
         lastTuckY = y;
     }
+    // Keyboard focus moving into a tucked header brings it back, so the focused control is never hidden.
+    header?.addEventListener('focusin', () => header.classList.remove('tucked'));
 
-    let ticking = false;
+    let ticking = false, resized = true;
     function onScroll() {
         ticking = false;
+        // Measure everything first...
         const y = scrollY;
+        let pct = 0;
+        if (progress && article) pct = Math.min(1, Math.max(0, (y - article.offsetTop) / Math.max(1, article.offsetHeight - innerHeight)));
+        const line = (header?.offsetHeight || 0) + 120;
+        const atBottom = innerHeight + y >= document.documentElement.scrollHeight - 4;
+        const actives = spies.map(sp => measureSpy(sp, line, atBottom));
+        // ...then write.
         header?.classList.toggle('scrolled', y > 8);
         toTop?.classList.toggle('show', y > innerHeight * 0.8);
         rail?.classList.toggle('show', y > innerHeight * 0.6);
-        if (progress && article) {
-            const start = article.offsetTop;
-            const span = Math.max(1, article.offsetHeight - innerHeight);
-            const pct = Math.min(1, Math.max(0, (y - start) / span));
-            progress.style.transform = `scaleX(${pct})`;
-        }
-        spies.forEach(updateSpy);
-        moveIndicator();
+        if (progress && article) progress.style.transform = `scaleX(${pct})`;
+        spies.forEach((sp, k) => markSpy(sp, actives[k]));
+        moveIndicator(resized);
+        resized = false;
         tuckHeader(y);
     }
     const requestTick = () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } };
     addEventListener('scroll', requestTick, { passive: true });
-    addEventListener('resize', requestTick);
+    addEventListener('resize', () => { resized = true; requestTick(); });
     onScroll();
 
     // ---- Back to top: scroll up and move focus to the page start rather than leaving it at the footer ----
@@ -195,14 +213,19 @@
         function apply() {
             const q = (search?.value || '').trim().toLowerCase();
             let matching = 0;
-            let shown = 0;
+            let shown = 0, returning = 0;
             cards.forEach(card => {
                 const ok = (area === 'all' || card.dataset.category === area) && (!q || card.dataset.search.includes(q));
                 if (ok) matching++;
                 const visible = ok && matching <= limit;
-                if (visible && card.hidden && !motionOff()) {
-                    card.classList.add('pop');
-                    card.addEventListener('animationend', () => card.classList.remove('pop'), { once: true });
+                // A card that had already arrived and is shown again replays its own entrance once, in order with
+                // the others coming back. One that never arrived waits for the viewport like any other block.
+                if (visible && card.hidden && card.classList.contains('in') && root.classList.contains('motion-on')) {
+                    card.hidden = false;
+                    card.classList.remove('in');
+                    card.style.setProperty('--i', Math.min(returning++, 5));
+                    void card.offsetWidth;
+                    card.classList.add('in');
                 }
                 card.hidden = !visible;
                 if (visible) shown++;

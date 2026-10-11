@@ -125,7 +125,7 @@
             </div>
         </div>
     </div>
-    <a class="scroll-cue" data-scroll="fade" href="@(featured.Any() ? "#work" : "#experience")" aria-label="Scroll to the work">
+    <a class="scroll-cue" data-scroll="fade" href="@(featured.Any() ? "#work" : Model.ExperienceGroups.Any() ? "#experience" : "#about")" aria-label="Scroll to the next section">
         <span class="scroll-cue-mouse" aria-hidden="true"><span></span></span>
         <span class="scroll-cue-text" aria-hidden="true">Scroll</span>
     </a>
@@ -188,9 +188,7 @@
                 }
             </div>
             <div class="project-grid featured-grid" data-stagger data-pointer-each="tilt" data-badge="View case study →">
-                @{ ViewData["Enter"] = "deal"; }
-                @foreach (var p in featured) { <partial name="_ProjectCard" model="p" /> }
-                @{ ViewData["Enter"] = null; }
+                @foreach (var p in featured) { <partial name="_ProjectCard" model="p" view-data="@(new ViewDataDictionary(ViewData) { ["Enter"] = "deal" })" /> }
             </div>
         </div>
     </section>
