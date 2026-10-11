@@ -9,7 +9,7 @@
     var activeArea = ViewData["Area"] as string;
 }
 <article class="card project-card reveal" data-category="@areaSlug" data-search="@search" hidden="@(activeArea is not null && activeArea != area)">
-    <div class="project-media">
+    <div class="project-media" style="view-transition-name: cover-@Model.Slug">
         @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
         {
             <img src="@Model.ImageUrl" alt="" loading="lazy" decoding="async" />

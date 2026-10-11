@@ -1,5 +1,6 @@
 // Public site behaviour: theme toggle, header (compact on scroll, mobile menu, active section), scroll
-// reveal, back-to-top, reading progress, projects filter, copy-email, gallery lightbox.
+// reveal, back-to-top, reading progress, projects filter, copy-email, gallery lightbox, and the home page's
+// motion (rotating headline, count-up stats, pointer spotlight, card tilt).
 // Every feature checks for its markup and does nothing when absent, so one file serves all pages.
 (function () {
     const root = document.documentElement;
@@ -43,9 +44,20 @@
     if (root.classList.contains('reveal-on')) {
         const pending = new Set(reveals);
         const show = el => { el.classList.add('in'); pending.delete(el); };
-        const io = new IntersectionObserver(entries => entries.forEach(e => {
-            if (e.isIntersecting) { show(e.target); io.unobserve(e.target); }
-        }), { rootMargin: '0px 0px -5% 0px' });
+        // Items that arrive together (a row of cards) come in one after another, then lose the delay so hover
+        // effects aren't slowed by it.
+        const io = new IntersectionObserver(entries => {
+            let n = 0;
+            entries.forEach(e => {
+                if (!e.isIntersecting) return;
+                const d = Math.min(n++, 5) * 80;
+                if (d) {
+                    e.target.style.setProperty('--d', d + 'ms');
+                    setTimeout(() => e.target.style.removeProperty('--d'), d + 700);
+                }
+                show(e.target); io.unobserve(e.target);
+            });
+        }, { rootMargin: '0px 0px -5% 0px' });
         // Anything in or above the viewport (a deep link, a restored scroll position, a programmatic jump that
         // outruns the observer) is shown right away; only content still below the fold waits.
         checkReveals = () => pending.forEach(el => {
@@ -57,6 +69,85 @@
         addEventListener('beforeprint', revealAll);
         setTimeout(revealAll, 4000); // safety net: nothing stays hidden, whatever the observer does
         root.classList.add('reveal-ready');
+    }
+
+    // ---- Home motion. Each piece is decoration over content that is already complete in the HTML, and none of
+    //      it runs when the visitor prefers reduced motion. ----
+    if (!reducedMotion) {
+        // Rotating headline phrase: one shown at a time, the old one slides up and out.
+        document.querySelectorAll('[data-rotator]').forEach(rot => {
+            const items = [...rot.children];
+            if (items.length < 2) return;
+            let i = 0;
+            rot.classList.add('live');
+            items[0].classList.add('on');
+            setInterval(() => {
+                if (document.hidden) return;
+                const prev = items[i];
+                i = (i + 1) % items.length;
+                prev.classList.replace('on', 'off');
+                items.forEach(el => { if (el !== prev) el.classList.remove('off'); });
+                items[i].classList.add('on');
+            }, 2600);
+        });
+
+        // Count-up stats: the leading number in "7+", "28" or "70–80% faster" counts up once, when first seen.
+        // The final text is in the HTML, and width is held so nothing shifts while it counts.
+        const counters = [...document.querySelectorAll('[data-count]')];
+        if (counters.length && 'IntersectionObserver' in window) {
+            const run = el => {
+                const text = el.textContent;
+                const m = text.match(/\d+/);
+                if (!m) return;
+                const target = +m[0];
+                const before = text.slice(0, m.index), after = text.slice(m.index + m[0].length);
+                el.style.minWidth = el.offsetWidth + 'px';
+                const start = performance.now(), dur = 1200;
+                const step = now => {
+                    const t = Math.min(1, (now - start) / dur);
+                    const eased = 1 - Math.pow(1 - t, 3);
+                    el.textContent = before + Math.round(target * eased) + after;
+                    if (t < 1) requestAnimationFrame(step); else el.textContent = text;
+                };
+                requestAnimationFrame(step);
+            };
+            const cio = new IntersectionObserver(entries => entries.forEach(e => {
+                if (e.isIntersecting) { run(e.target); cio.unobserve(e.target); }
+            }), { threshold: 0.6 });
+            counters.forEach(el => cio.observe(el));
+        }
+
+        // Pointer spotlight and card tilt: mouse and pen only (touch has no hover to follow).
+        if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+            const follow = (el, fn) => {
+                let frame = 0, ev = null;
+                el.addEventListener('pointermove', e => {
+                    ev = e;
+                    if (!frame) frame = requestAnimationFrame(() => { frame = 0; fn(ev); });
+                });
+            };
+            document.querySelectorAll('[data-spotlight]').forEach(el => follow(el, e => {
+                const r = el.getBoundingClientRect();
+                el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+                el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+            }));
+            document.querySelectorAll('[data-tilt] .project-card').forEach(card => {
+                follow(card, e => {
+                    const r = card.getBoundingClientRect();
+                    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+                    card.classList.add('tilting');
+                    card.style.setProperty('--gx', x * 100 + '%');
+                    card.style.setProperty('--gy', y * 100 + '%');
+                    card.style.setProperty('--rx', ((0.5 - y) * 6).toFixed(2) + 'deg');
+                    card.style.setProperty('--ry', ((x - 0.5) * 6).toFixed(2) + 'deg');
+                });
+                card.addEventListener('pointerleave', () => {
+                    card.classList.remove('tilting');
+                    card.style.removeProperty('--rx');
+                    card.style.removeProperty('--ry');
+                });
+            });
+        }
     }
 
     // ---- Scroll-driven bits, one rAF-throttled handler: compact header, back-to-top, reading progress,
