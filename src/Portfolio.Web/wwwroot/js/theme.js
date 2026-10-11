@@ -18,11 +18,11 @@
     // off applies at once; turning back on reloads a page that runs motion.js, since it only sets up its effects
     // on load.
     var deviceReduced = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
-    // A choice made on this page (data-motion-chosen, set by the footer switch) counts even when storage
-    // couldn't keep it.
+    // Storage is the source of truth. When it can't be read, an off choice made on this page still counts
+    // (data-motion-chosen, which the footer switch sets only when storage couldn't keep the choice).
     function chosenOff() {
-        if (root.hasAttribute('data-motion-chosen')) return true;
-        try { return localStorage.getItem('motion') === 'reduced'; } catch (e) { return false; }
+        try { return localStorage.getItem('motion') === 'reduced' || root.hasAttribute('data-motion-chosen'); }
+        catch (e) { return root.hasAttribute('data-motion-chosen'); }
     }
     var started = false;
     function applyMotion() {
