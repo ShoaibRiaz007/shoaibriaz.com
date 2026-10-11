@@ -51,6 +51,32 @@ public class PublicContentFacadePublishedTests
         Assert.DoesNotContain((await Sut().GetProjectsAsync()).Projects, p => p.Slug == "draft");
     }
 
+    // The home page renders ProminentProjects as is, so the facade's cap is the number of highlights.
+    [Fact]
+    public async Task Home_HighlightsTheFirstFeaturedProjects_UpToTheHomeCount()
+    {
+        for (var i = 3; i <= 7; i++)
+            _projects.Items.Add(new Project { Id = i, Slug = $"f{i}", Title = $"F{i}", IsFeatured = true, SortOrder = i });
+        _projects.Items.Add(new Project { Id = 8, Slug = "plain", Title = "Plain", SortOrder = 0 });
+
+        var home = await Sut().GetHomeAsync();
+
+        Assert.Equal(PublicContentFacade.HomeFeaturedProjects, home.ProminentProjects.Count);
+        Assert.Equal(new[] { "live", "f3", "f4" }, home.ProminentProjects.Select(p => p.Slug));
+    }
+
+    [Fact]
+    public async Task Home_FallsBackToListOrder_WhenTooFewAreFeatured()
+    {
+        _projects.Items.Add(new Project { Id = 3, Slug = "b", Title = "B", SortOrder = 3 });
+        _projects.Items.Add(new Project { Id = 4, Slug = "c", Title = "C", SortOrder = 4 });
+        _projects.Items.Add(new Project { Id = 5, Slug = "d", Title = "D", SortOrder = 5 });
+
+        var home = await Sut().GetHomeAsync();
+
+        Assert.Equal(new[] { "live", "b", "c" }, home.ProminentProjects.Select(p => p.Slug));
+    }
+
     [Fact]
     public async Task ProjectDetail_CarriesThePublishedListForPrevNext_AndMoreExcludesItself()
     {

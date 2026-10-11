@@ -4,25 +4,49 @@
     var bio = Model.Bio;
     var current = Model.ExperienceGroups.FirstOrDefault(g => g.Roles.Any(r => r.IsCurrent));
     var currentRole = current?.Roles.First(r => r.IsCurrent);
-    var proofProjects = Model.Projects.Where(p => !string.IsNullOrWhiteSpace(p.Metric)).Take(3).ToList();
-    // Full rows only on the home page (3 per row on desktop); the rest are one click away.
-    var showcase = Model.Projects.Count >= 3 ? Model.Projects.Take(Model.Projects.Count / 3 * 3).ToList() : Model.Projects;
+    // Only metrics led by a number ("70–80% faster ...") make the stats strip; labels belong on the cards.
+    // A bare figure ("12") is captioned with its project's title.
+    var proofs = Model.Projects
+        .Select(p => PublicSite.ProofFigure(p.Metric) is { } f ? (f.Figure, Label: f.Label.Length > 0 ? f.Label : p.Title) : default((string Figure, string Label)?))
+        .OfType<(string Figure, string Label)>().Take(2).ToList();
+    var featured = Model.Projects;
     var skillGroups = Model.Skills.GroupBy(s => string.IsNullOrWhiteSpace(s.Category) ? "Skills" : s.Category).ToList();
+    // Headline "Team Lead · C# / .NET · AI/LLM · ..." : the first part leads, the rest rotate after it.
+    var headlineParts = PublicSite.HeadlineParts(bio.Headline);
+    var rotating = headlineParts.Skip(1).ToList();
+    var nameWords = (bio.FullName ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    // The marquee: where I've worked, then the tools I use most.
+    var marquee = Model.ExperienceGroups.Select(g => g.Company.Trim())
+        .Concat(Model.Person?.Skills ?? []).Where(x => x.Length > 0)
+        .Distinct(StringComparer.OrdinalIgnoreCase).Take(16).ToList();
     // Role highlights beyond this many sit behind "Show more" so the timeline stays scannable.
-    const int visiblePoints = 3;
+    const int visiblePoints = 2;
 }
 
-<section class="hero">
+<section class="hero" data-spotlight>
     <div class="container hero-grid">
-        <div>
-            <span class="status"><span class="status-dot" aria-hidden="true"></span>
-                @(currentRole is null ? "Open to opportunities" : $"{currentRole.Role} at {current!.Company}")
+        <div class="hero-copy">
+            <span class="status hero-in" style="--i:0"><span class="status-dot" aria-hidden="true"></span>
+                @(currentRole is null ? "Open to opportunities" : $"{currentRole.Role} at {current!.Company} · open to lead roles")
             </span>
-            <h1>@bio.FullName</h1>
-            @if (!string.IsNullOrWhiteSpace(bio.Headline)) { <p class="headline">@bio.Headline</p> }
-            @if (!string.IsNullOrWhiteSpace(bio.Tagline)) { <p class="tagline">@bio.Tagline</p> }
-            <div class="hero-actions">
-                <a class="btn btn-primary" href="@(Model.Projects.Any() ? "#work" : "/projects")">View work</a>
+            <h1 aria-label="@bio.FullName">
+                @for (var i = 0; i < nameWords.Length; i++)
+                {
+                    <span class="word" aria-hidden="true" style="--i:@(i + 1)">@nameWords[i]</span>
+                }
+            </h1>
+            @if (headlineParts.Length > 0)
+            {
+                <p class="headline hero-in" style="--i:3">
+                    <span class="visually-hidden">@bio.Headline</span>
+                    <span aria-hidden="true">@headlineParts[0]@if (rotating.Count > 0) {<text> · </text><span class="rotator" data-rotator>@foreach (var r in rotating) {<span>@r</span>}</span>}</span>
+                </p>
+            }
+            @if (!string.IsNullOrWhiteSpace(bio.Tagline)) { <p class="tagline hero-in" style="--i:4">@bio.Tagline</p> }
+            <div class="hero-actions hero-in" style="--i:5">
+                <a class="btn btn-primary" href="@(featured.Any() ? "#work" : "/projects")">View work
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                </a>
                 @if (!string.IsNullOrWhiteSpace(bio.ResumeUrl))
                 {
                     <a class="btn btn-ghost" href="@bio.ResumeUrl" target="_blank" rel="noopener">Download CV</a>
@@ -31,9 +55,20 @@
                 {
                     <a class="btn btn-ghost" href="/cv">View CV</a>
                 }
-                <a class="btn btn-link" href="#contact">Contact <span aria-hidden="true">→</span></a>
+                @if (!string.IsNullOrWhiteSpace(bio.Email))
+                {
+                    <span class="hero-copy-email">
+                        @* Hidden until public.js runs; until then (or if it never does) the Contact link stands in. *@
+                        <button type="button" class="btn btn-link copy-btn" data-copy="@bio.Email">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                            <span data-copy-label>Copy email</span>
+                        </button>
+                        <span class="visually-hidden" role="status" aria-live="polite" data-copy-status></span>
+                    </span>
+                }
+                <a class="btn btn-link contact-fallback" href="#contact">Contact <span aria-hidden="true">→</span></a>
             </div>
-            <div class="hero-meta">
+            <div class="hero-meta hero-in" style="--i:6">
                 @if (!string.IsNullOrWhiteSpace(bio.Location))
                 {
                     <span class="hero-loc">
@@ -63,40 +98,62 @@
                 </ul>
             </div>
         </div>
-        <div class="hero-side">
-            @if (!string.IsNullOrWhiteSpace(bio.ProfileImageUrl))
-            {
-                <img class="avatar" src="@bio.ProfileImageUrl" alt="Portrait of @bio.FullName" width="220" height="220" />
-            }
-            else
-            {
-                <div class="avatar avatar-fallback" aria-hidden="true">@PublicSite.Initials(bio)</div>
-            }
-            <a class="island-link" href="/world/">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20h18M6 20c0-4 2.7-7 6-7s6 3 6 7"/><path d="M12 13V5m0 0c-2-2-5-1.5-6 0m6 0c2-2 5-1.5 6 0"/></svg>
-                <span><strong>Visit my island</strong><small>My career as an explorable 3D world</small></span>
-            </a>
+        <div class="hero-side hero-in" style="--i:2">
+            <div class="avatar-wrap">
+                @if (!string.IsNullOrWhiteSpace(bio.ProfileImageUrl))
+                {
+                    <img class="avatar" src="@bio.ProfileImageUrl" alt="Portrait of @bio.FullName" width="260" height="260" fetchpriority="high" />
+                }
+                else
+                {
+                    <div class="avatar avatar-fallback" aria-hidden="true">@PublicSite.Initials(bio)</div>
+                }
+            </div>
         </div>
     </div>
 </section>
 
-@if (!string.IsNullOrWhiteSpace(bio.YearsExperience) || proofProjects.Count > 0)
+@if (!string.IsNullOrWhiteSpace(bio.YearsExperience) || Model.TotalProjects > 0 || proofs.Count > 0)
 {
     <div class="container">
         <ul class="proof reveal" aria-label="Highlights">
             @if (!string.IsNullOrWhiteSpace(bio.YearsExperience))
             {
-                <li class="proof-item"><strong>@bio.YearsExperience years</strong><span>building with C#, .NET and Unity</span></li>
+                <li class="proof-item"><strong data-count>@bio.YearsExperience</strong><span>years building with C#, .NET and Unity</span></li>
             }
-            @foreach (var p in proofProjects)
+            @if (Model.TotalProjects > 0)
             {
-                <li class="proof-item"><strong>@p.Metric</strong><span>@p.Title</span></li>
+                <li class="proof-item"><strong data-count>@Model.TotalProjects</strong><span>projects shipped</span></li>
+            }
+            @foreach (var (figure, label) in proofs)
+            {
+                <li class="proof-item"><strong data-count>@figure</strong><span>@label</span></li>
             }
         </ul>
     </div>
 }
 
-@if (Model.Projects.Any())
+@if (marquee.Count > 0)
+{
+    <div class="marquee-wrap" role="group" aria-label="Companies and tools">
+        <div class="marquee">
+            <ul class="marquee-track">
+                @foreach (var m in marquee) { <li>@m</li> }
+            </ul>
+            @* A second copy makes the loop seamless; it's decoration, so assistive tech skips it. *@
+            <ul class="marquee-track" aria-hidden="true">
+                @foreach (var m in marquee) { <li>@m</li> }
+            </ul>
+        </div>
+        @* Shown by public.js: content that keeps moving needs a way to stop it. *@
+        <button type="button" class="icon-btn marquee-toggle" aria-pressed="false" aria-label="Pause the moving list" hidden>
+            <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+    </div>
+}
+
+@if (featured.Any())
 {
     <section class="section" id="work" aria-labelledby="work-title">
         <div class="container">
@@ -106,13 +163,38 @@
                     <h2 id="work-title">Case studies</h2>
                     <p>What I built, the problem it solved and what changed because of it.</p>
                 </div>
-                @if (Model.TotalProjects > showcase.Count)
+                @if (Model.TotalProjects > featured.Count)
                 {
-                    <a class="text-link" href="/projects">All @Model.TotalProjects projects →</a>
+                    <a class="text-link arrow-link" href="/projects">All @Model.TotalProjects projects <span aria-hidden="true">→</span></a>
                 }
             </div>
-            <div class="project-grid">
-                @foreach (var p in showcase) { <partial name="_ProjectCard" model="p" /> }
+            <div class="project-grid featured-grid" data-tilt>
+                @foreach (var p in featured) { <partial name="_ProjectCard" model="p" /> }
+            </div>
+        </div>
+    </section>
+}
+
+@if (Model.Services.Any())
+{
+    @* The header's Skills link points at #skills; with no skills listed, this section answers it. *@
+    <section class="section" id="@(skillGroups.Any() ? "approach" : "skills")" aria-labelledby="approach-title">
+        <div class="container">
+            <div class="section-head">
+                <div>
+                    <span class="kicker">How I work</span>
+                    <h2 id="approach-title">What I bring to a team</h2>
+                </div>
+            </div>
+            <div class="services">
+                @foreach (var s in Model.Services)
+                {
+                    <div class="card service reveal">
+                        @if (!string.IsNullOrWhiteSpace(s.Icon)) { <span class="icon" aria-hidden="true">@s.Icon</span> }
+                        <h3>@s.Title</h3>
+                        <p>@s.Description</p>
+                    </div>
+                }
             </div>
         </div>
     </section>
@@ -127,7 +209,7 @@
                     <span class="kicker">Experience</span>
                     <h2 id="exp-title">Where I've worked</h2>
                 </div>
-                <a class="text-link" href="/cv">Full CV →</a>
+                <a class="text-link arrow-link" href="/cv">Full CV <span aria-hidden="true">→</span></a>
             </div>
             <ol class="timeline">
                 @foreach (var g in Model.ExperienceGroups)
@@ -166,7 +248,7 @@
     </section>
 }
 
-@if (skillGroups.Any() || Model.Services.Any())
+@if (skillGroups.Any())
 {
     <section class="section" id="skills" aria-labelledby="skills-title">
         <div class="container">
@@ -176,34 +258,38 @@
                     <h2 id="skills-title">What I work with</h2>
                 </div>
             </div>
-            @if (Model.Services.Any())
-            {
-                <div class="services">
-                    @foreach (var s in Model.Services)
-                    {
-                        <div class="card service reveal">
-                            @if (!string.IsNullOrWhiteSpace(s.Icon)) { <span class="icon" aria-hidden="true">@s.Icon</span> }
-                            <h3>@s.Title</h3>
-                            <p>@s.Description</p>
-                        </div>
-                    }
-                </div>
-            }
-            @if (skillGroups.Any())
-            {
-                <div class="skill-groups stack-gap">
-                    @foreach (var g in skillGroups)
-                    {
-                        <div class="card skill-group reveal">
-                            <h3>@g.Key</h3>
-                            <ul class="chips">@foreach (var s in g) { <li class="chip">@s.Name</li> }</ul>
-                        </div>
-                    }
-                </div>
-            }
+            <div class="skill-groups">
+                @foreach (var g in skillGroups)
+                {
+                    <div class="card skill-group reveal">
+                        <h3>@g.Key</h3>
+                        <ul class="chips">@foreach (var s in g) { <li class="chip">@s.Name</li> }</ul>
+                    </div>
+                }
+            </div>
         </div>
     </section>
 }
+
+<section class="section island-section" aria-labelledby="island-title">
+    <div class="container">
+        <a class="card island-teaser reveal" href="/world/" aria-labelledby="island-title">
+            <div class="island-copy">
+                <span class="kicker">Something different</span>
+                <h2 id="island-title">Explore my career as a 3D island</h2>
+                <p class="muted">Walk the career trail, read the journal, sit by the campfire. Runs in the browser; keyboard and touch work.</p>
+                <span class="btn btn-ghost island-cta">Visit the island <span aria-hidden="true">→</span></span>
+            </div>
+            <svg class="island-art" viewBox="0 0 320 200" aria-hidden="true">
+                <circle class="ia-sun" cx="248" cy="52" r="22"/>
+                <path class="ia-wave ia-wave-2" d="M0 158c27 0 27-8 53-8s27 8 53 8 27-8 53-8 27 8 54 8 26-8 53-8 27 8 54 8v42H0z"/>
+                <path class="ia-land" d="M70 156c14-30 44-44 90-44s78 16 92 44z"/>
+                <path class="ia-tree" d="M150 116v-38m0 0c-10-10-26-9-32 0m32 0c10-10 26-9 32 0m-32 0c-4-12-16-18-26-14m26 14c4-12 16-18 26-14"/>
+                <path class="ia-wave ia-wave-1" d="M0 170c27 0 27-8 53-8s27 8 53 8 27-8 53-8 27 8 54 8 26-8 53-8 27 8 54 8v30H0z"/>
+            </svg>
+        </a>
+    </div>
+</section>
 
 <section class="section" id="about" aria-labelledby="about-title">
     <div class="container">
@@ -270,7 +356,7 @@
 
 <section class="section" id="contact" aria-labelledby="contact-title">
     <div class="container">
-        <div class="card contact-band reveal">
+        <div class="card contact-band reveal" data-spotlight>
             <div>
                 <span class="kicker">Contact</span>
                 <h2 id="contact-title">Let's build something.</h2>

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Globalization;
@@ -140,9 +141,25 @@ public static class PublicSite
 
     private static bool IsCountry(string name) => CountryNames.Contains(name.Trim());
 
+    /// <summary>The headline's parts, split on any of the separators admins use ("Team Lead · C# / .NET").</summary>
+    public static string[] HeadlineParts(string? headline)
+        => (headline ?? "").Split(['·', '•', '|'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
     /// <summary>The job title for the headline alone: its first part ("Team Lead · C# / .NET" → "Team Lead").</summary>
-    public static string? HeadlineTitle(string? headline)
-        => (headline ?? "").Split(['·', '•', '|'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+    public static string? HeadlineTitle(string? headline) => HeadlineParts(headline).FirstOrDefault();
+
+    /// <summary>A project metric as a stat: the leading figure and the words after it ("70–80% faster level
+    /// production" → "70–80%", "faster level production"). Null when the metric isn't led by a number
+    /// ("Claude-powered diagrams"), so labels stay on the cards. A figure may carry a symbol in front ("~70%",
+    /// "$2M") and a range written with spaces ("70 – 80%") stays together.</summary>
+    public static (string Figure, string Label)? ProofFigure(string? metric)
+    {
+        var m = ProofPattern.Match(metric ?? "");
+        return m.Success ? (m.Groups[1].Value, m.Groups[2].Value.Trim()) : null;
+    }
+
+    private static readonly Regex ProofPattern = new(@"^\s*([~≈<>+$€£]?[0-9][^\s]*(?:\s+[–—-]\s*[0-9][^\s]*)?)(.*)$",
+        RegexOptions.Compiled | RegexOptions.Singleline);
 
     /// <summary>A video embed in the providers' privacy modes: YouTube's no-cookie domain, and Vimeo's Do Not Track.
     /// Stored embeds keep their canonical URL; this is applied when the page renders them.</summary>

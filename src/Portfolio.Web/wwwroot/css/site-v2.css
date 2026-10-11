@@ -248,56 +248,96 @@ main:focus { outline: none; }
 .muted { color: var(--text-dim); }
 
 /* ---------- Hero ---------- */
-.hero { padding: 96px 0 72px; }
-.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 48px; align-items: center; }
+.hero { position: relative; padding: 104px 0 64px; isolation: isolate; }
+/* Cursor spotlight: public.js moves --mx/--my; without it the glow sits top-left. */
+[data-spotlight] { --mx: 20%; --my: 20%; }
+.hero::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(520px circle at var(--mx) var(--my), var(--accent-soft), transparent 60%);
+}
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 56px; align-items: center; }
 .status {
     display: inline-flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; letter-spacing: .08em;
     color: var(--accent); background: var(--accent-soft); padding: 7px 13px; border-radius: 999px;
 }
-.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
-.hero h1 { font-size: clamp(40px, 7vw, 76px); font-weight: 900; letter-spacing: -.035em; margin: 22px 0 14px; }
-.hero .headline {
-    font-size: clamp(18px, 2.4vw, 24px); font-weight: 700;
-    background: linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent;
+.status-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.status-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-out infinite; }
+@keyframes pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(3.2); opacity: 0; } }
+.hero h1 { font-size: clamp(44px, 8vw, 88px); font-weight: 900; letter-spacing: -.04em; margin: 22px 0 14px; line-height: 1.02; }
+.hero h1 .word { display: inline-block; margin-right: .22em; }
+.hero h1 .word:last-child {
+    margin-right: 0;
+    background: linear-gradient(100deg, var(--text) 10%, var(--accent) 60%, var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.hero .tagline { color: var(--text-dim); font-size: 17px; max-width: 640px; margin-top: 18px; }
-.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.hero .headline { font-size: clamp(18px, 2.4vw, 24px); font-weight: 700; color: var(--text); }
+/* Rotating headline word: every phrase is stacked in one grid cell (so the widest sets the width and nothing
+   shifts), and public.js marks one .on at a time. Without JS the first phrase shows. */
+.rotator { display: inline-grid; vertical-align: bottom; overflow: hidden; }
+.rotator > span {
+    grid-area: 1 / 1; white-space: nowrap;
+    background: linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    transition: transform .5s cubic-bezier(.2, .7, .2, 1), opacity .5s;
+}
+.rotator > span:not(:first-child) { opacity: 0; transform: translateY(100%); }
+.rotator.live > span { opacity: 0; transform: translateY(100%); }
+.rotator.live > span.on { opacity: 1; transform: none; }
+.rotator.live > span.off { opacity: 0; transform: translateY(-100%); }
+.hero .tagline { color: var(--text-dim); font-size: 17.5px; max-width: 620px; margin-top: 18px; }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 30px; }
+.hero-copy-email { display: contents; }
+/* The Contact link stands in until the copy button is ready (public.js), and stays if it never is. */
+.hero-actions:has(.copy-btn.ready) .contact-fallback { display: none; }
 .hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; margin-top: 28px; color: var(--text-dim); font-size: 14px; }
 .hero-loc { display: inline-flex; align-items: center; gap: 8px; }
 .hero-loc svg { width: 16px; height: 16px; color: var(--accent); flex-shrink: 0; }
 .socials { list-style: none; display: flex; gap: 8px; }
-.hero-side { display: grid; justify-items: center; gap: 16px; }
-.island-link {
-    display: flex; align-items: center; gap: 12px; width: 220px; padding: 12px 14px; text-decoration: none;
-    border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-raised);
-    transition: border-color .2s, transform .2s;
+.hero-side { display: grid; justify-items: center; }
+/* Portrait with a slowly turning gradient ring. */
+.avatar-wrap { position: relative; padding: 5px; border-radius: 34px; }
+.avatar-wrap::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1;
+    background: conic-gradient(from var(--ring, 0deg), var(--accent), var(--accent-2), var(--accent-soft), var(--accent-2), var(--accent));
+    animation: ring 8s linear infinite;
 }
-.island-link:hover { border-color: var(--accent-2); transform: translateY(-1px); }
-.island-link svg { width: 22px; height: 22px; color: var(--accent-2); flex-shrink: 0; }
-.island-link strong { display: block; font-size: 14px; }
-.island-link small { display: block; font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
+.avatar-wrap::after {
+    content: ""; position: absolute; inset: -30px; border-radius: 50%; z-index: -2;
+    background: radial-gradient(circle, var(--glow-1), transparent 70%); filter: blur(10px);
+}
+@property --ring { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes ring { to { --ring: 360deg; } }
 .avatar {
-    width: 220px; height: 220px; border-radius: 28px; object-fit: cover;
-    border: 1px solid var(--border-strong); box-shadow: var(--shadow);
+    width: 260px; height: 260px; border-radius: 30px; object-fit: cover; display: block;
+    background: var(--bg-raised); box-shadow: var(--shadow);
 }
 .avatar-fallback {
-    display: grid; place-items: center; font-size: 64px; font-weight: 900; color: var(--accent);
-    background: linear-gradient(140deg, var(--accent-soft), transparent);
+    display: grid; place-items: center; font-size: 72px; font-weight: 900; color: var(--accent);
+    background: linear-gradient(140deg, var(--accent-soft), var(--bg-raised));
 }
-@media (max-width: 760px) {
-    .hero { padding: 56px 0 48px; }
-    .hero-grid { grid-template-columns: 1fr; gap: 28px; }
-    .hero-side { order: -1; grid-template-columns: auto minmax(0, 1fr); justify-items: start; align-items: center; }
-    .hero-grid .avatar { width: 88px; height: 88px; border-radius: 20px; }
-    .avatar-fallback { font-size: 30px; }
-    .island-link { width: auto; max-width: 280px; }
-    .hero-actions .btn { flex: 1 1 auto; }
+/* Hero entrance: each piece rises in turn (--i sets the order). Content is visible if animations are off. */
+@media (prefers-reduced-motion: no-preference) {
+    .hero-in, .hero h1 .word { animation: rise .7s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 90ms + 60ms); }
+}
+/* Starts at .01, not 0: Chrome doesn't count fully transparent text as painted, so 0 would push back the
+   Largest Contentful Paint until the animation ends. */
+@keyframes rise { from { opacity: .01; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@media (max-width: 860px) {
+    .hero { padding: 48px 0 40px; }
+    /* A smaller portrait sits above the name. */
+    .hero-grid { grid-template-columns: 1fr; gap: 24px; grid-template-areas: "side" "copy"; }
+    .hero-side { justify-items: start; grid-area: side; }
+    .avatar { width: 112px; height: 112px; border-radius: 22px; }
+    .avatar-wrap { border-radius: 26px; padding: 4px; }
+    .avatar-fallback { font-size: 34px; }
+    .hero-actions .btn-primary, .hero-actions .btn-ghost { flex: 1 1 auto; }
+    .hero-copy { grid-area: copy; }
+    .hero h1 { margin-top: 18px; }
 }
 
 /* ---------- Proof strip ---------- */
 .proof { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .proof-item { background: var(--bg-raised); padding: 22px 22px 20px; }
-.proof-item strong { display: block; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.proof-item strong { display: block; font-size: clamp(22px, 3vw, 30px); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+    background: linear-gradient(100deg, var(--text), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .proof-item span { display: block; color: var(--text-dim); font-size: 13.5px; margin-top: 4px; }
 
 /* ---------- Cards / projects ---------- */
@@ -587,6 +627,8 @@ details.more[open] .when-open { display: inline; }
     body { font-size: 11pt; }
     .site-header, .site-footer, .bg-grid, .bg-glow, .cv-actions, .skip-link, .to-top { display: none !important; }
     .reveal { opacity: 1 !important; transform: none !important; }
+    /* Gradient text is painted as a background, which printing leaves out. */
+    .hero h1 .word, .hero .headline .rotator > span, .proof-item strong { background: none !important; color: var(--text) !important; }
     .cv { margin: 0; padding: 0; border: 0; box-shadow: none; max-width: none; }
     .cv .cv-item, .cv section { break-inside: avoid; }
     a { text-decoration: none; }
@@ -605,7 +647,6 @@ details.more[open] .when-open { display: inline; }
 .nf-link span { font-size: 13.5px; color: var(--text-dim); }
 
 /* ---------- Small utilities ---------- */
-.stack-gap { margin-top: 18px; }
 .subhead { margin: 40px 0 14px; }
 .contact-note { margin-top: 8px; }
 .hero-actions.flush { margin-top: 0; }
@@ -651,3 +692,110 @@ details.more[open] .when-open { display: inline; }
 .contact-privacy a { color: var(--text-dim); }
 
 .load-more { display: flex; justify-content: center; margin-top: 28px; }
+
+/* ---------- Home: marquee ---------- */
+.marquee-wrap { position: relative; margin-top: 40px; }
+.marquee {
+    display: flex; overflow: hidden; padding: 14px 0; user-select: none;
+    border-block: 1px solid var(--border);
+    mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+.marquee-track {
+    list-style: none; display: flex; flex-shrink: 0; gap: 44px; padding-right: 44px; min-width: 100%; justify-content: space-around;
+    animation: marquee 40s linear infinite;
+}
+.marquee-track li { white-space: nowrap; font-size: 14px; font-weight: 700; letter-spacing: .06em; color: var(--text-faint); }
+.marquee-track li::before { content: "◆"; margin-right: 44px; font-size: 8px; vertical-align: 3px; color: var(--accent); opacity: .6; }
+.marquee:hover .marquee-track, .marquee-wrap.paused .marquee-track { animation-play-state: paused; }
+.marquee-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; }
+.marquee-toggle svg { width: 14px; height: 14px; }
+.marquee-toggle .icon-play, .marquee-wrap.paused .marquee-toggle .icon-pause { display: none; }
+.marquee-wrap.paused .marquee-toggle .icon-play { display: block; }
+@keyframes marquee { to { transform: translateX(-100%); } }
+/* No motion: one static, wrapping row. */
+@media (prefers-reduced-motion: reduce) {
+    .marquee { mask-image: none; }
+    .marquee-track { flex-wrap: wrap; justify-content: center; gap: 10px 28px; min-width: 0; padding: 0 16px; flex-shrink: 1; }
+    .marquee-track[aria-hidden] { display: none; }
+    .marquee-track li::before { margin-right: 10px; }
+    .marquee-toggle { display: none; }
+}
+
+/* ---------- Home: featured cards (pointer glow + slight tilt, set by public.js) ---------- */
+.featured-grid .project-card { --gx: 50%; --gy: 50%; --rx: 0deg; --ry: 0deg; transform-style: preserve-3d; }
+.featured-grid .project-card::before {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; opacity: 0; transition: opacity .3s;
+    background: radial-gradient(360px circle at var(--gx) var(--gy), color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%);
+}
+.featured-grid .project-card:hover::before { opacity: 1; }
+.featured-grid .project-card.tilting { transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-3px); transition: transform .08s linear, box-shadow .2s, border-color .2s; }
+.project-media img, .project-media .art { transition: transform .5s cubic-bezier(.2, .7, .2, 1); }
+.project-card:hover .project-media img, .project-card:hover .project-media .art { transform: scale(1.04); }
+.arrow-link span { display: inline-block; transition: transform .2s; }
+.arrow-link:hover span { transform: translateX(4px); }
+.btn svg { transition: transform .2s; }
+.btn-primary:hover svg { transform: translateY(2px); }
+
+/* ---------- Home: experience line draws in as you scroll (where supported) ---------- */
+@supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+        .roles.multi { border-left-color: transparent; }
+        .roles.multi::before {
+            content: ""; position: absolute; left: -2px; top: 0; bottom: 0; width: 2px; background: linear-gradient(var(--accent), var(--border));
+            transform-origin: top; animation: draw linear both; animation-timeline: view(); animation-range: entry 10% cover 50%;
+        }
+    }
+}
+@keyframes draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* ---------- Home: island teaser ---------- */
+.island-section { padding-top: 24px; border-top: 0 !important; }
+.island-teaser {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); align-items: center; gap: 24px;
+    padding: 36px 40px; text-decoration: none; overflow: hidden;
+    background: linear-gradient(120deg, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 60%), var(--bg-raised);
+}
+.island-teaser:hover, .island-teaser:focus-visible { border-color: var(--accent-2); transform: translateY(-2px); box-shadow: var(--shadow); }
+.island-copy h2 { font-size: clamp(24px, 3vw, 32px); margin: 8px 0 10px; }
+.island-cta { margin-top: 20px; }
+.island-teaser:hover .island-cta, .island-teaser:focus-visible .island-cta { border-color: var(--accent-2); color: var(--accent-2); }
+.island-art { width: 100%; height: auto; border-radius: 14px; }
+.ia-sun { fill: var(--warn); opacity: .85; }
+.ia-land { fill: color-mix(in srgb, var(--accent) 55%, var(--bg-raised)); }
+.ia-tree { fill: none; stroke: var(--accent-strong); stroke-width: 5; stroke-linecap: round; }
+.ia-wave { fill: color-mix(in srgb, var(--accent-2) 35%, var(--bg-raised)); }
+.ia-wave-1 { fill: color-mix(in srgb, var(--accent-2) 55%, var(--bg-raised)); }
+@media (prefers-reduced-motion: no-preference) {
+    .ia-wave-1 { animation: bob 5s ease-in-out infinite; }
+    .ia-wave-2 { animation: bob 7s ease-in-out infinite reverse; }
+    .ia-sun { animation: glow 6s ease-in-out infinite; transform-origin: 248px 52px; }
+    .ia-tree { transform-origin: 150px 116px; animation: sway 6s ease-in-out infinite; }
+}
+@keyframes bob { 50% { transform: translateX(-14px) translateY(3px); } }
+@keyframes glow { 50% { transform: scale(1.12); opacity: 1; } }
+@keyframes sway { 50% { transform: rotate(2.5deg); } }
+@media (max-width: 760px) {
+    .island-teaser { grid-template-columns: 1fr; padding: 24px; }
+    .island-art { order: -1; max-width: 300px; }
+}
+
+/* Contact band gets the same pointer glow as the hero. */
+.contact-band[data-spotlight] { background: radial-gradient(420px circle at var(--mx) var(--my), var(--accent-soft), transparent 65%), linear-gradient(120deg, var(--accent-soft), transparent 70%), var(--bg-raised); }
+
+/* Revealed groups arrive one after another (public.js sets --d per batch). */
+@media (prefers-reduced-motion: no-preference) {
+    .reveal-on .reveal { transition-delay: var(--d, 0ms); }
+}
+
+/* Page-to-page cross-fade, and a project's cover image morphs into the case-study hero (Chromium; others just navigate). */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .25s; }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+
+/* Featured cards: one row on wide screens; on tablets an odd count lets the first span the row so none is left alone. */
+@media (min-width: 980px) { .featured-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 640px) and (max-width: 979px) {
+    .featured-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .featured-grid > :first-child:nth-last-child(odd) { grid-column: 1 / -1; }
+    .featured-grid > :first-child:nth-last-child(odd) .project-media { aspect-ratio: 21 / 9; }
+}

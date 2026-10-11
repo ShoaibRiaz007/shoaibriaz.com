@@ -39,6 +39,7 @@ public static class AdminOverview
     /// <summary>Home page highlights need at least this many live featured projects, otherwise it falls back
     /// to the first projects in list order (PublicContentFacade.GetHomeAsync).</summary>
     public const int MinFeaturedProjects = Application.Facades.PublicContentFacade.MinFeaturedProjects;
+    public const int HomeFeaturedProjects = Application.Facades.PublicContentFacade.HomeFeaturedProjects;
 
     public static readonly IReadOnlyList<AdminSection> Sections = new[]
     {
@@ -120,7 +121,9 @@ public static class AdminOverview
                     ? "Add an email address and a LinkedIn profile." : "Email and LinkedIn set.",
                 !string.IsNullOrWhiteSpace(bio.Email) && !string.IsNullOrWhiteSpace(bio.LinkedIn), "EditBio"),
             new("Featured projects", featured >= MinFeaturedProjects
-                    ? $"{Plural(featured, "live featured project")} on the home page."
+                    ? featured > HomeFeaturedProjects
+                        ? $"{Plural(featured, "live featured project")}; the home page shows the first {HomeFeaturedProjects} in list order."
+                        : $"{Plural(featured, "live featured project")} on the home page."
                     : $"{featured} of {MinFeaturedProjects} needed. Below that the home page shows the first projects in list order.",
                 featured >= MinFeaturedProjects, "List", projectsRoute),
             ProjectCheck("Project cover images", noImage, "cover image"),

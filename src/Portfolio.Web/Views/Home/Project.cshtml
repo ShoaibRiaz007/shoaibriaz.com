@@ -69,7 +69,7 @@
                     </div>
                 }
             </div>
-            <figure class="cs-cover">
+            <figure class="cs-cover" style="view-transition-name: cover-@p.Slug">
                 @if (cover is null)
                 {
                     <div class="art art-@areaSlug art-v@(PublicSite.Variant(p.Slug))" aria-hidden="true">
