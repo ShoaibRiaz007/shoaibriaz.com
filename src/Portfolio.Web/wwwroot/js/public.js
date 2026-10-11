@@ -85,23 +85,42 @@
                 if (document.hidden) return;
                 const prev = items[i];
                 i = (i + 1) % items.length;
+                const next = items[i];
                 prev.classList.replace('on', 'off');
-                items.forEach(el => { if (el !== prev) el.classList.remove('off'); });
-                items[i].classList.add('on');
+                items.forEach(el => { if (el !== prev && el !== next) el.classList.remove('off'); });
+                // The incoming phrase may still be parked above (it left last time, with only two phrases):
+                // move it below without animating, so it always rises in from underneath.
+                if (next.classList.contains('off')) {
+                    next.style.transition = 'none';
+                    next.classList.remove('off');
+                    void next.offsetWidth;
+                    next.style.transition = '';
+                }
+                next.classList.add('on');
             }, 2600);
         });
 
-        // Count-up stats: the leading number in "7+", "28" or "70–80% faster" counts up once, when first seen.
-        // The final text is in the HTML, and width is held so nothing shifts while it counts.
+        // Marquee pause button (WCAG 2.2.2: moving content that runs on needs a way to stop it).
+        document.querySelectorAll('.marquee-toggle').forEach(btn => {
+            const wrap = btn.closest('.marquee-wrap');
+            btn.hidden = false;
+            btn.addEventListener('click', () => {
+                const paused = wrap.classList.toggle('paused');
+                btn.setAttribute('aria-pressed', String(paused));
+            });
+        });
+
+        // Count-up stats: the leading whole number in "7+", "28" or "70–80%" counts up once, when first seen.
+        // The final text is in the HTML; figures like "1,200" or "2.5x" are left as written, since counting
+        // only their first digits would show wrong numbers on the way.
         const counters = [...document.querySelectorAll('[data-count]')];
         if (counters.length && 'IntersectionObserver' in window) {
             const run = el => {
                 const text = el.textContent;
                 const m = text.match(/\d+/);
-                if (!m) return;
+                if (!m || /^[.,]\d/.test(text.slice(m.index + m[0].length))) return;
                 const target = +m[0];
                 const before = text.slice(0, m.index), after = text.slice(m.index + m[0].length);
-                el.style.minWidth = el.offsetWidth + 'px';
                 const start = performance.now(), dur = 1200;
                 const step = now => {
                     const t = Math.min(1, (now - start) / dur);
@@ -119,11 +138,18 @@
 
         // Pointer spotlight and card tilt: mouse and pen only (touch has no hover to follow).
         if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
-            const follow = (el, fn) => {
+            // Pointer work runs at most once a frame; leaving drops any frame still queued, so a fast exit
+            // can't re-apply the effect after the reset.
+            const follow = (el, fn, leave) => {
                 let frame = 0, ev = null;
                 el.addEventListener('pointermove', e => {
                     ev = e;
                     if (!frame) frame = requestAnimationFrame(() => { frame = 0; fn(ev); });
+                });
+                el.addEventListener('pointerleave', () => {
+                    cancelAnimationFrame(frame);
+                    frame = 0;
+                    leave?.();
                 });
             };
             document.querySelectorAll('[data-spotlight]').forEach(el => follow(el, e => {
@@ -132,16 +158,18 @@
                 el.style.setProperty('--my', (e.clientY - r.top) + 'px');
             }));
             document.querySelectorAll('[data-tilt] .project-card').forEach(card => {
+                // Measured every frame (the card moves as the page scrolls or reveals it); the box includes the
+                // small tilt itself, so the result is clamped to the card.
+                const clamp = v => Math.min(1, Math.max(0, v));
                 follow(card, e => {
                     const r = card.getBoundingClientRect();
-                    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+                    const x = clamp((e.clientX - r.left) / r.width), y = clamp((e.clientY - r.top) / r.height);
                     card.classList.add('tilting');
                     card.style.setProperty('--gx', x * 100 + '%');
                     card.style.setProperty('--gy', y * 100 + '%');
                     card.style.setProperty('--rx', ((0.5 - y) * 6).toFixed(2) + 'deg');
                     card.style.setProperty('--ry', ((x - 0.5) * 6).toFixed(2) + 'deg');
-                });
-                card.addEventListener('pointerleave', () => {
+                }, () => {
                     card.classList.remove('tilting');
                     card.style.removeProperty('--rx');
                     card.style.removeProperty('--ry');
@@ -159,22 +187,29 @@
     if (progress && article) progress.classList.add('on');
 
     const spies = [];
-    function addSpy(pairs) {
+    // within: the line must be inside a section for it to count (home sections sit edge to edge, and some have
+    // no header link, which should then mark none); otherwise the last section above the line stays active,
+    // which suits the case-study list with gaps between its blocks. Either way, at the very bottom of the page
+    // the last link wins, since its section may be too short to ever reach the line.
+    function addSpy(pairs, within = false) {
         const items = pairs.map(([link, id]) => ({ link, target: document.getElementById(id) })).filter(i => i.target);
-        if (items.length) spies.push(items);
+        if (items.length) spies.push({ items, within });
     }
     if (location.pathname === '/' && nav) {
         // Header links point at "/#section" (data-section); on the home page those sections are right here.
-        addSpy([...nav.querySelectorAll('a[data-section]')].map(a => [a, a.dataset.section]));
+        addSpy([...nav.querySelectorAll('a[data-section]')].map(a => [a, a.dataset.section]), true);
     }
     document.querySelectorAll('[data-spy]').forEach(n =>
         addSpy([...n.querySelectorAll('a[href^="#"]')].map(a => [a, decodeURIComponent(a.hash.slice(1))])));
 
-    function updateSpy(items) {
+    function updateSpy({ items, within }) {
         const line = (header?.offsetHeight || 0) + 120;
         const atBottom = innerHeight + scrollY >= document.documentElement.scrollHeight - 4;
         let active = null;
-        items.forEach(i => { if (i.target.getBoundingClientRect().top <= line) active = i; });
+        items.forEach(i => {
+            const r = i.target.getBoundingClientRect();
+            if (r.top <= line && (!within || r.bottom > line)) active = i;
+        });
         if (atBottom && items[items.length - 1].target.getBoundingClientRect().top < innerHeight) active = items[items.length - 1];
         items.forEach(i => {
             i.link.classList.toggle('is-active', i === active);
@@ -309,7 +344,8 @@
 
     // ---- Copy email (the button is hidden until this runs). The async Clipboard API can be denied (insecure
     //      origin, embedded frame, permissions), so fall back to execCommand, and failing that select the
-    //      address so the visitor can copy it themselves. ----
+    //      address beside the button so the visitor can copy it themselves, or, with none beside it, show the
+    //      address on the button. ----
     function legacyCopy(text) {
         const ta = document.createElement('textarea');
         ta.value = text;
@@ -326,15 +362,21 @@
         const label = btn.querySelector('[data-copy-label]');
         const status = btn.parentElement.querySelector('[data-copy-status]');
         const address = btn.parentElement.querySelector('a');
-        const idle = label?.textContent || '';
+        let idle = label?.textContent || '';
         let timer;
         btn.classList.add('ready');
         btn.addEventListener('click', () => {
             const text = btn.dataset.copy;
             const fallback = () => {
                 if (legacyCopy(text)) { feedback('Copied!', true); return; }
-                if (address) getSelection()?.selectAllChildren(address);
-                feedback('Press Ctrl+C', false);
+                if (address) { getSelection()?.selectAllChildren(address); feedback('Press Ctrl+C', false); return; }
+                // No address shown beside this button (the hero's): put it on the button, and keep it there
+                // (it becomes the label the button returns to).
+                clearTimeout(timer);
+                idle = text;
+                btn.classList.remove('copied');
+                if (label) label.textContent = text;
+                if (status) status.textContent = `Couldn't copy. The email address is ${text}`;
             };
             if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => feedback('Copied!', true), fallback);
             else fallback();

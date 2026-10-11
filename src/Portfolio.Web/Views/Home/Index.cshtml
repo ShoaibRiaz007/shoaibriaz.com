@@ -4,17 +4,20 @@
     var bio = Model.Bio;
     var current = Model.ExperienceGroups.FirstOrDefault(g => g.Roles.Any(r => r.IsCurrent));
     var currentRole = current?.Roles.First(r => r.IsCurrent);
-    // Only metrics that are numbers ("70–80% faster ...") make the stats strip; labels belong on the cards.
-    var proofProjects = Model.Projects.Where(p => !string.IsNullOrWhiteSpace(p.Metric) && char.IsDigit(p.Metric.TrimStart()[0])).Take(2).ToList();
-    var featured = Model.Projects.Take(3).ToList();
+    // Only metrics led by a number ("70–80% faster ...") make the stats strip; labels belong on the cards.
+    // A bare figure ("12") is captioned with its project's title.
+    var proofs = Model.Projects
+        .Select(p => PublicSite.ProofFigure(p.Metric) is { } f ? (f.Figure, Label: f.Label.Length > 0 ? f.Label : p.Title) : default((string Figure, string Label)?))
+        .OfType<(string Figure, string Label)>().Take(2).ToList();
+    var featured = Model.Projects;
     var skillGroups = Model.Skills.GroupBy(s => string.IsNullOrWhiteSpace(s.Category) ? "Skills" : s.Category).ToList();
     // Headline "Team Lead · C# / .NET · AI/LLM · ..." : the first part leads, the rest rotate after it.
-    var headlineParts = (bio.Headline ?? "").Split('·', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    var headlineParts = PublicSite.HeadlineParts(bio.Headline);
     var rotating = headlineParts.Skip(1).ToList();
     var nameWords = (bio.FullName ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
     // The marquee: where I've worked, then the tools I use most.
-    var marquee = Model.ExperienceGroups.Select(g => g.Company)
-        .Concat(Model.Skills.Select(s => s.Name)).Where(x => !string.IsNullOrWhiteSpace(x))
+    var marquee = Model.ExperienceGroups.Select(g => g.Company.Trim())
+        .Concat(Model.Person?.Skills ?? []).Where(x => x.Length > 0)
         .Distinct(StringComparer.OrdinalIgnoreCase).Take(16).ToList();
     // Role highlights beyond this many sit behind "Show more" so the timeline stays scannable.
     const int visiblePoints = 2;
@@ -55,7 +58,7 @@
                 @if (!string.IsNullOrWhiteSpace(bio.Email))
                 {
                     <span class="hero-copy-email">
-                        @* Hidden until public.js runs; without JS the Contact link is the way in. *@
+                        @* Hidden until public.js runs; until then (or if it never does) the Contact link stands in. *@
                         <button type="button" class="btn btn-link copy-btn" data-copy="@bio.Email">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
                             <span data-copy-label>Copy email</span>
@@ -63,7 +66,7 @@
                         <span class="visually-hidden" role="status" aria-live="polite" data-copy-status></span>
                     </span>
                 }
-                <a class="btn btn-link no-js-only" href="#contact">Contact <span aria-hidden="true">→</span></a>
+                <a class="btn btn-link contact-fallback" href="#contact">Contact <span aria-hidden="true">→</span></a>
             </div>
             <div class="hero-meta hero-in" style="--i:6">
                 @if (!string.IsNullOrWhiteSpace(bio.Location))
@@ -110,7 +113,7 @@
     </div>
 </section>
 
-@if (!string.IsNullOrWhiteSpace(bio.YearsExperience) || Model.TotalProjects > 0 || proofProjects.Count > 0)
+@if (!string.IsNullOrWhiteSpace(bio.YearsExperience) || Model.TotalProjects > 0 || proofs.Count > 0)
 {
     <div class="container">
         <ul class="proof reveal" aria-label="Highlights">
@@ -122,11 +125,9 @@
             {
                 <li class="proof-item"><strong data-count>@Model.TotalProjects</strong><span>projects shipped</span></li>
             }
-            @foreach (var p in proofProjects)
+            @foreach (var (figure, label) in proofs)
             {
-                // "70–80% faster level production": the figure is the headline, the words explain it.
-                var figure = p.Metric.Trim().Split(' ', 2);
-                <li class="proof-item"><strong data-count>@figure[0]</strong><span>@(figure.Length > 1 ? figure[1] : p.Title)</span></li>
+                <li class="proof-item"><strong data-count>@figure</strong><span>@label</span></li>
             }
         </ul>
     </div>
@@ -134,14 +135,21 @@
 
 @if (marquee.Count > 0)
 {
-    <div class="marquee" aria-label="Companies and tools">
-        <ul class="marquee-track">
-            @foreach (var m in marquee) { <li>@m</li> }
-        </ul>
-        @* A second copy makes the loop seamless; it's decoration, so assistive tech skips it. *@
-        <ul class="marquee-track" aria-hidden="true">
-            @foreach (var m in marquee) { <li>@m</li> }
-        </ul>
+    <div class="marquee-wrap" role="group" aria-label="Companies and tools">
+        <div class="marquee">
+            <ul class="marquee-track">
+                @foreach (var m in marquee) { <li>@m</li> }
+            </ul>
+            @* A second copy makes the loop seamless; it's decoration, so assistive tech skips it. *@
+            <ul class="marquee-track" aria-hidden="true">
+                @foreach (var m in marquee) { <li>@m</li> }
+            </ul>
+        </div>
+        @* Shown by public.js: content that keeps moving needs a way to stop it. *@
+        <button type="button" class="icon-btn marquee-toggle" aria-pressed="false" aria-label="Pause the moving list" hidden>
+            <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        </button>
     </div>
 }
 
@@ -169,7 +177,8 @@
 
 @if (Model.Services.Any())
 {
-    <section class="section" id="approach" aria-labelledby="approach-title">
+    @* The header's Skills link points at #skills; with no skills listed, this section answers it. *@
+    <section class="section" id="@(skillGroups.Any() ? "approach" : "skills")" aria-labelledby="approach-title">
         <div class="container">
             <div class="section-head">
                 <div>
@@ -264,7 +273,7 @@
 
 <section class="section island-section" aria-labelledby="island-title">
     <div class="container">
-        <a class="card island-teaser reveal" href="/world/">
+        <a class="card island-teaser reveal" href="/world/" aria-labelledby="island-title">
             <div class="island-copy">
                 <span class="kicker">Something different</span>
                 <h2 id="island-title">Explore my career as a 3D island</h2>

@@ -117,6 +117,45 @@ public class PublicSiteTests
         => Assert.Equal(expected, PublicSite.IsStaticAssetPath(new PathString(path)));
 
     private static (string?, string?) Slugs((Project? Previous, Project? Next) n) => (n.Previous?.Slug, n.Next?.Slug);
+
+    // The home hero leads with the first part and rotates the rest, and the structured data's job title is the
+    // first part too: both read the same separators.
+    [Theory]
+    [InlineData("Team Lead · C# / .NET · AI/LLM", new[] { "Team Lead", "C# / .NET", "AI/LLM" })]
+    [InlineData("Team Lead • C# / .NET", new[] { "Team Lead", "C# / .NET" })]
+    [InlineData("Team Lead | C# / .NET", new[] { "Team Lead", "C# / .NET" })]
+    [InlineData(" Team Lead ", new[] { "Team Lead" })]
+    [InlineData("", new string[0])]
+    [InlineData(null, new string[0])]
+    public void HeadlineParts_SplitsOnEverySeparator(string? headline, string[] expected)
+    {
+        Assert.Equal(expected, PublicSite.HeadlineParts(headline));
+        Assert.Equal(expected.FirstOrDefault(), PublicSite.HeadlineTitle(headline));
+    }
+
+    // The home stats strip shows only metrics led by a number, split into the figure and the words after it.
+    [Theory]
+    [InlineData("70–80% faster level production", "70–80%", "faster level production")]
+    [InlineData("70 – 80% faster", "70 – 80%", "faster")]
+    [InlineData("70 - 80% faster", "70 - 80%", "faster")]
+    [InlineData("70 — 80% faster", "70 — 80%", "faster")]
+    [InlineData("70 –80% faster", "70 –80%", "faster")]
+    [InlineData("70% faster\nlevel production", "70%", "faster\nlevel production")]
+    [InlineData("~70% faster", "~70%", "faster")]
+    [InlineData("$2M saved", "$2M", "saved")]
+    [InlineData("1,200+ users", "1,200+", "users")]
+    [InlineData("  3x faster", "3x", "faster")]
+    [InlineData("12", "12", "")]
+    public void ProofFigure_SplitsTheLeadingFigure(string metric, string figure, string label)
+        => Assert.Equal((figure, label), PublicSite.ProofFigure(metric));
+
+    [Theory]
+    [InlineData("Claude-powered diagrams inside PowerPoint")]
+    [InlineData("JSON-RPC 2.0 over named pipes")]
+    [InlineData("   ")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void ProofFigure_NullWhenNotLedByANumber(string? metric) => Assert.Null(PublicSite.ProofFigure(metric));
 }
 
 public class NotFoundRouteTests

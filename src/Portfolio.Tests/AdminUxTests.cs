@@ -191,6 +191,18 @@ public class AdminOverviewTests
         Assert.True(Check(Dashboard(projects: projects), "Featured projects").Done);
     }
 
+    // More featured than the home page shows: still done, and the detail names how many it shows.
+    [Fact]
+    public void FeaturedProjects_BeyondTheHomeCount_SayHowManyShow()
+    {
+        var projects = Enumerable.Range(1, AdminOverview.HomeFeaturedProjects + 1)
+            .Select(i => new Project { Id = i, IsFeatured = true }).ToArray();
+        var item = Check(Dashboard(projects: projects), "Featured projects");
+        Assert.True(item.Done);
+        Assert.Contains($"first {AdminOverview.HomeFeaturedProjects}", item.Detail);
+        Assert.DoesNotContain("first", Check(Dashboard(projects: projects[..AdminOverview.HomeFeaturedProjects]), "Featured projects").Detail);
+    }
+
     [Fact]
     public void OneProjectMissingAnImage_LinksStraightToItsForm_SeveralLinkToTheList()
     {

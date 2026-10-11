@@ -108,14 +108,14 @@
                 <div class="field">
                     <label asp-for="Metric" class="form-label">Headline result</label>
                     <input asp-for="Metric" class="form-control" placeholder="70–80% faster level production" maxlength="120" aria-describedby="Metric-help" data-preview-text="metric" />
-                    <div class="field-meta"><span class="field-help" id="Metric-help">One short proof point, with a number if you have one.</span></div>
+                    <div class="field-meta"><span class="field-help" id="Metric-help">One short proof point. On a home page highlight, a result that leads with a number ("70% faster …") also appears in the stats.</span></div>
                 </div>
                 <div class="field span-2">
                     <div class="switch-field">
                         <input asp-for="IsFeatured" class="switch-input" role="switch" aria-describedby="IsFeatured-help" />
                         <label asp-for="IsFeatured" class="switch-label">Featured on the home page</label>
                     </div>
-                    <p class="field-help" id="IsFeatured-help">The home page highlights up to 6 live featured projects, and needs at least 3.</p>
+                    <p class="field-help" id="IsFeatured-help">The home page highlights the first @AdminOverview.HomeFeaturedProjects live featured projects in list order, and needs at least @AdminOverview.MinFeaturedProjects.</p>
                 </div>
             </div>
             <aside class="card-preview" aria-label="Card preview">

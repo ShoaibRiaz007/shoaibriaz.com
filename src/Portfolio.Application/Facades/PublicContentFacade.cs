@@ -33,6 +33,9 @@ public class PublicContentFacade : IPublicContentFacade
     /// shows the first projects in list order instead (the admin checklist warns about it).</summary>
     public const int MinFeaturedProjects = 3;
 
+    /// <summary>How many projects the home page highlights.</summary>
+    public const int HomeFeaturedProjects = 3;
+
     /// <summary>Published rows only, in admin order — filtered and sorted in SQL. Id breaks SortOrder ties
     /// (two rows appended at once can share a position) so the order is stable between requests.</summary>
     private static Task<IReadOnlyList<T>> PublishedAsync<T>(IRepository<T> repo, CancellationToken ct)
@@ -43,7 +46,7 @@ public class PublicContentFacade : IPublicContentFacade
 
     public Task<Bio> GetBioAsync(CancellationToken ct = default) => BioAsync(ct);
 
-    public async Task<HomeData> GetHomeAsync(int prominentCount = 6, CancellationToken ct = default)
+    public async Task<HomeData> GetHomeAsync(int prominentCount = HomeFeaturedProjects, CancellationToken ct = default)
     {
         var bio = await BioAsync(ct);
         var services = await PublishedAsync(_services, ct);

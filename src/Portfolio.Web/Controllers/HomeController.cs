@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Portfolio.Caching;
 using Portfolio.Application.Abstractions;
+using Portfolio.Application.Facades;
 using Portfolio.Domain.Services;
 using Portfolio.Hosting;
 using Portfolio.Models;
@@ -27,7 +28,7 @@ public class HomeController : Controller
     [OutputCache(PolicyName = "public-content")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        var data = await _content.GetHomeAsync(6, ct);
+        var data = await _content.GetHomeAsync(PublicContentFacade.HomeFeaturedProjects, ct);
         var name = data.Bio.FullName;
         return View(new HomeViewModel
         {

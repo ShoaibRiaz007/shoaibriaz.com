@@ -6,7 +6,10 @@ namespace Portfolio.Application.Abstractions;
 /// Only published content is ever returned.</summary>
 public interface IPublicContentFacade
 {
-    Task<HomeData> GetHomeAsync(int prominentCount = 6, CancellationToken ct = default);
+    /// <summary>The home page content. ProminentProjects is exactly what the page highlights: the first
+    /// <paramref name="prominentCount"/> live featured projects in list order, or the first live projects when
+    /// fewer than <see cref="Facades.PublicContentFacade.MinFeaturedProjects"/> are featured.</summary>
+    Task<HomeData> GetHomeAsync(int prominentCount = Facades.PublicContentFacade.HomeFeaturedProjects, CancellationToken ct = default);
     Task<ProjectsData> GetProjectsAsync(CancellationToken ct = default);
     Task<ProjectDetail?> GetProjectDetailAsync(string slug, CancellationToken ct = default);
     Task<SiteData> GetSiteAsync(CancellationToken ct = default);
