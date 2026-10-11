@@ -15,11 +15,14 @@
     // data-motion-by saying which. Scripts read only that attribute; motion.css keys its motion-off rules on it
     // too, with the device media query kept as the fallback for when JavaScript doesn't run. It follows a device
     // setting change, the choice made in another tab, and a page restored from the back/forward cache. Turning
-    // off applies at once; turning back on reloads the page, since motion.js only sets up its effects on load.
+    // off applies at once; turning back on reloads a page that runs motion.js, since it only sets up its effects
+    // on load.
     var deviceReduced = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+    // A choice made on this page (data-motion-chosen, set by the footer switch) counts even when storage
+    // couldn't keep it.
     function chosenOff() {
-        // Storage unreadable: keep whatever was chosen on this page rather than treat it as no choice.
-        try { return localStorage.getItem('motion') === 'reduced'; } catch (e) { return root.getAttribute('data-motion-by') === 'choice'; }
+        if (root.hasAttribute('data-motion-chosen')) return true;
+        try { return localStorage.getItem('motion') === 'reduced'; } catch (e) { return false; }
     }
     var started = false;
     function applyMotion() {
@@ -29,7 +32,9 @@
             root.setAttribute('data-motion-by', byDevice ? 'device' : 'choice');
             root.classList.remove('motion-on');   // nothing is left waiting to arrive
         } else if (root.hasAttribute('data-motion')) {
-            if (started) { location.reload(); return; }
+            // A page with motion.js reloads so its effects start; any other page (the admin, with forms that
+            // may hold unsaved input) only drops the attribute.
+            if (started && document.querySelector('script[src*="/js/motion.js"]')) { location.reload(); return; }
             root.removeAttribute('data-motion');
             root.removeAttribute('data-motion-by');
         }

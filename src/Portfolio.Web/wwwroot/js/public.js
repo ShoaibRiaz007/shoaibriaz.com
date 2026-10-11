@@ -39,6 +39,7 @@
                 return;
             }
             try { localStorage.setItem('motion', 'reduced'); } catch (e) { /* off for this page only */ }
+            root.setAttribute('data-motion-chosen', '');   // theme.js keeps this page's choice even without storage
             root.setAttribute('data-motion', 'reduced');
             root.setAttribute('data-motion-by', 'choice');
             root.classList.remove('motion-on');   // nothing is left waiting to arrive

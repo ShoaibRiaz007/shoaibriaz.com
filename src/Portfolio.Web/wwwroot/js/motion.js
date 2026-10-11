@@ -67,8 +67,9 @@
                 el.classList.add('in');
                 pending.delete(el);
             }));
-            // Done watching the scroll once nothing visible is left to arrive (hidden cards are the observer's).
-            if ([...pending].every(el => !el.getClientRects().length)) removeEventListener('scroll', onScrollCatchUp);
+            // Done watching the scroll once everything has arrived. Hidden cards stay pending: the filter can
+            // show them later, and a fast jump past them still needs this catch-up.
+            if (!pending.size) removeEventListener('scroll', onScrollCatchUp);
         };
         let observed = false;
         const io = new IntersectionObserver(entries => {

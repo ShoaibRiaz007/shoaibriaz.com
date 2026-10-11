@@ -38,6 +38,8 @@
     .no-js .marquee { mask-image: none; }
     .no-js .marquee-track { flex-wrap: wrap; justify-content: center; gap: 10px 28px; min-width: 0; padding: 0 16px; flex-shrink: 1; }
     .no-js .marquee-track[aria-hidden] { display: none; }
+    .no-js .marquee-track li::before { margin-right: 10px; }
+    .no-js .marquee-toggle { display: none; }
 }
 /* Off screen, a [data-idle] region's decorative loops hold still (motion.js toggles .idle-paused). Only the loops
    in section 5 read --idle, so an entrance or scroll effect in the same region is never frozen part-way. */
