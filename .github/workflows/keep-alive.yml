@@ -1,25 +1,46 @@
-# Pings the site every 14 minutes so the free web instance never reaches its 15-minute idle spin-down.
-# Scheduled runs are best effort on GitHub (they can start a few minutes late under load), and GitHub
-# pauses schedules after 60 days without repository activity; re-enable from the Actions tab if so.
+# Keeps the free Render instance from reaching its 15-minute idle spin-down.
+# GitHub starts scheduled runs late or skips them (hours apart on quiet repos), so each run stays up for close to
+# the 6-hour job limit and pings every 10 minutes itself. Runs share a concurrency group without cancelling, so a
+# run that starts while another is pinging waits and takes over when it ends: one late schedule is enough to keep
+# the pings continuous. Public repositories don't pay for Actions minutes.
+# GitHub pauses schedules after 60 days without repository activity; re-enable from the Actions tab if so.
 # Set the repository variable SITE_URL to change the target (defaults to the Render address).
 name: Keep alive
 
 on:
   schedule:
-    - cron: "*/14 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 permissions: {}
 
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 355
     steps:
-      - name: Ping /health
+      - name: Ping /health every 10 minutes
         env:
           SITE_URL: ${{ vars.SITE_URL || 'https://shoaibriaz-com.onrender.com' }}
         run: |
-          # A sleeping instance takes up to a minute to wake, so allow for it and retry a few times.
-          curl --fail --silent --show-error --max-time 90 --retry 3 --retry-delay 15 --retry-all-errors \
-            "$SITE_URL/health"
+          end=$((SECONDS + 5 * 3600 + 45 * 60))   # stop before the job limit so the next run can take over
+          ok=0
+          while :; do
+            # A sleeping instance takes up to a minute to wake, so allow for it and retry a few times.
+            if curl --fail --silent --show-error --max-time 90 --retry 3 --retry-delay 15 --retry-all-errors \
+                "$SITE_URL/health" > /dev/null; then
+              ok=1
+              echo "$(date -u +%H:%M) ok"
+            else
+              ok=0
+              echo "::warning::$(date -u +%H:%M) /health did not answer"
+            fi
+            [ "$SECONDS" -ge "$end" ] && break
+            sleep 600
+          done
+          # The run fails only if the site wasn't answering at the end, so a red run means it's down now.
+          [ "$ok" -eq 1 ]
