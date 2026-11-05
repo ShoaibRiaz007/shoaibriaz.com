@@ -44,6 +44,7 @@
                 @(currentRole is null ? "Open to opportunities" : $"{currentRole.Role} at {current!.Company} · open to lead roles")
             </span>
             <h1 aria-label="@bio.FullName">
+                <span class="visually-hidden">@bio.FullName</span>
                 @for (var i = 0; i < nameWords.Length; i++)
                 {
                     <span class="word" aria-hidden="true" data-enter="hero" style="--i:@(i + 1)">@nameWords[i]</span>
@@ -164,7 +165,7 @@
                 @foreach (var m in marquee) { <li>@m</li> }
             </ul>
         </div>
-        @* Shown by public.js: content that keeps moving needs a way to stop it. *@
+        @* Shown by motion.js: content that keeps moving needs a way to stop it. *@
         <button type="button" class="icon-btn marquee-toggle" data-pause aria-pressed="false" aria-label="Pause the moving list" hidden>
             <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
             <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
@@ -322,12 +323,12 @@
                 @foreach (var para in PublicSite.Lines(bio.About)) { <p>@para</p> }
             </div>
             <ul class="facts" data-enter="slide-right">
-                @if (!string.IsNullOrWhiteSpace(bio.Location)) { <li><span>Based in</span><span>@bio.Location</span></li> }
-                @if (!string.IsNullOrWhiteSpace(bio.YearsExperience)) { <li><span>Experience</span><span>@bio.YearsExperience years</span></li> }
-                @if (currentRole is not null) { <li><span>Currently</span><span>@currentRole.Role, @current!.Company</span></li> }
+                @if (!string.IsNullOrWhiteSpace(bio.Location)) { <li><span>Based in </span><span>@bio.Location</span></li> }
+                @if (!string.IsNullOrWhiteSpace(bio.YearsExperience)) { <li><span>Experience </span><span>@bio.YearsExperience years</span></li> }
+                @if (currentRole is not null) { <li><span>Currently </span><span>@currentRole.Role, @current!.Company</span></li> }
                 @foreach (var e in Model.Educations)
                 {
-                    <li><span>Education</span><span>@string.Join(", ", new[] { e.Degree, e.FieldOfStudy }.Where(x => !string.IsNullOrWhiteSpace(x))) — @e.Institution</span></li>
+                    <li><span>Education </span><span>@string.Join(", ", new[] { e.Degree, e.FieldOfStudy }.Where(x => !string.IsNullOrWhiteSpace(x))) — @e.Institution</span></li>
                 }
             </ul>
         </div>

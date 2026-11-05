@@ -4,8 +4,9 @@ const KEY = 'shoaib-island.v1';
 
 const DEFAULTS = {
     settings: { sound: true, music: true, quality: 'auto', time: { mode: 'cycle', hour: 17.2, speed: 1 } },
-    journal: { seen: {}, done: {}, fish: {}, shells: [], lanterns: 0, wishes: 0, bestSkip: 0, planted: 0, pets: 0, catches: 0, photos: 0, seconds: 0, visits: 0, read: {} },
+    journal: { seen: {}, done: {}, fish: {}, shells: [], treasures: [], currentClue: null, lanterns: 0, wishes: 0, bestSkip: 0, bestKeepUp: 0, planted: 0, pets: 0, catches: 0, photos: 0, seconds: 0, visits: 0, read: {} },
     flowers: [],
+    cottage: { reaction: null },
     welcomed: false,
 };
 

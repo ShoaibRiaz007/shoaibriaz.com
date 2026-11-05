@@ -7,6 +7,7 @@ import { flowerGeometry, windify } from './vegetation.js';
 import { coastPoint, groundAt, heightAt, isBeach, isMeadow, PLACES, surfaceKind } from './terrain.js';
 import { mat } from './builders.js';
 import { rng } from './noise.js';
+import { fetchProjectDetail } from './api.js';
 
 export const FISH = [
     { id: 'sardine', name: 'Sardine', rarity: 'Common', size: [12, 20], w: 30, note: 'Small, silver and always in a hurry.' },
@@ -43,15 +44,19 @@ export const ACTIVITIES = [
     { id: 'skip', title: 'Skip a stone', hint: 'Stand at the water’s edge on a beach.' },
     { id: 'plant', title: 'Plant a flower', hint: 'Press F (or 🌱) anywhere on the grass.' },
     { id: 'shells', title: 'Find all 12 seashells', hint: 'Sparkles on the sand. Look closely.' },
-    { id: 'drive', title: 'Take the car for a drive', hint: 'It’s parked by the cottage, keys in.' },
+    { id: 'treasure', title: 'Find the island treasures', hint: 'Look for a washed-up bottle along the coastline.' },
+    { id: 'cottage', title: 'Relax inside the cottage', hint: 'The front door of the cottage is unlocked.' },
+    { id: 'beachball', title: 'Play beach ball keep-up', hint: 'Find the colorful beach ball on the south shore.' },
     { id: 'bench', title: 'Sit on a bench and watch the world', hint: 'Benches wait at the lookout, windmill and cliffs.' },
+    { id: 'rowboat', title: 'Row out onto the water', hint: 'A wooden rowboat is tied to the pier.' },
+    { id: 'marshmallow', title: 'Roast a golden marshmallow', hint: 'Hold a roasting stick over the campfire embers.' },
     { id: 'photo', title: 'Take a photo', hint: 'Press P for photo mode.' },
 ];
 
 const isNight = h => h >= 18.6 || h < 5.4;
 
 export function createActivities(ctx) {
-    const { scene, player, rig, life, audio, ui, anchors, save, water, time, showcase } = ctx;
+    const { scene, player, rig, life, audio, ui, anchors, save, water, time, showcase, treasure, cottage, beachBall, input } = ctx;
     const avatar = player.avatar;
     const S = AVATAR_SCALE;
     const v3 = () => new THREE.Vector3();
@@ -59,6 +64,20 @@ export function createActivities(ctx) {
     let busyUntil = 0;             // short actions (throw, plant) lock input briefly
 
     const journal = save.journal;
+    const checkCompletion = () => {
+        const completedCount = ACTIVITIES.filter(act => journal.done[act.id]).length;
+        if (completedCount === ACTIVITIES.length) {
+            if (!journal.completedAll) {
+                journal.completedAll = true;
+                setTimeout(() => {
+                    audio.play('chime', [60, 64, 67, 72, 76, 79, 84]);
+                    ui.toast({ icon: '🏆', title: 'Island Master', body: `All ${ACTIVITIES.length} activities complete! 100% Explored.` });
+                    ui.showCompletion();
+                }, 500);
+            }
+        }
+    };
+
     const markSeen = id => { if (!journal.seen[id]) { journal.seen[id] = true; ui.journalChanged(); } };
     const markDone = id => {
         if (journal.done[id]) return;
@@ -67,6 +86,9 @@ export function createActivities(ctx) {
         ui.toast({ icon: '✓', title: 'Journal', body: a?.title ?? id });
         audio.play('chime', [76, 79, 83]);
         ui.journalChanged();
+
+        // 100% Island Completion Celebration
+        checkCompletion();
     };
 
     // ---------- shared helpers ----------
@@ -91,21 +113,39 @@ export function createActivities(ctx) {
     }
     function release() { rig.override = null; rig.firstPerson = null; ui.setControls(null); ui.setVignette(false); time.fast = false; }
 
+    let asyncStopping = false;
+
     /** Ends the active activity (if any) and gives control back. */
     function stop() {
         if (!active) return;
         const a = active;
         active = null;
-        a.end?.();
-        release();
-        if (player.mode === 'busy') player.setBusy(false);
+        if (a.hasAsyncEnd) {
+            asyncStopping = true;
+            try {
+                a.end?.(() => {
+                    asyncStopping = false;
+                    release();
+                    if (player.mode === 'busy') player.setBusy(false);
+                });
+            } catch (err) {
+                console.error('Async activity end failed:', err);
+                asyncStopping = false;
+                release();
+                if (player.mode === 'busy') player.setBusy(false);
+            }
+        } else {
+            a.end?.();
+            release();
+            if (player.mode === 'busy') player.setBusy(false);
+        }
     }
     function begin(def) {
         stop();
         pending = null;
         ctx.input.consumeAction();          // a stale tap or Space press shouldn't fire the first action
         active = def;
-        player.setBusy(true);
+        player.setBusy(true, def.initialPose || 'idle');
         def.start();
     }
 
@@ -113,6 +153,7 @@ export function createActivities(ctx) {
     function sitActivity(anchor, { id, label, camera, after }) {
         return {
             id, label,
+            leaveLabel: 'Stand up',
             start() {
                 seat(anchor);
                 camera();
@@ -122,6 +163,77 @@ export function createActivities(ctx) {
             },
             update() { time.fast = ctx.input.held(' ') || ui.holdingTime; },
             end() {
+                const f = anchor.front ?? (() => { const d = facingVec(anchor.facing); return { x: anchor.x + d.x * 1.1, z: anchor.z + d.z * 1.1 }; })();
+                standAt(f.x, f.z, anchor.facing);
+            },
+        };
+    }
+
+    function campfireActivity(anchor, { camera }) {
+        let roastTimer = 0;
+        let sizzleTimer = 0;
+        let toasted = false;
+        let burnt = false;
+        const color = new THREE.Color();
+        return {
+            id: 'campfire',
+            label: 'Sit by the fire',
+            leaveLabel: 'Stand up',
+            start() {
+                seat(anchor);
+                camera();
+                if (avatar.userData.roastStick) avatar.userData.roastStick.visible = true;
+                if (avatar.userData.marshmallow) avatar.userData.marshmallow.material.color.set(0xffffff);
+                roastTimer = 0;
+                sizzleTimer = 0;
+                toasted = false;
+                burnt = false;
+                ui.setControls(['Hold <kbd>Space</kbd> to roast marshmallow over embers', 'Hold <kbd>T</kbd> to pass time', '<kbd>E</kbd> stand up']);
+                markDone('campfire');
+            },
+            update(dt) {
+                const roasting = ctx.input.held(' ') || ui.holdingTime;
+                if (roasting) {
+                    time.fast = false;
+                    setPose(avatar, 'roast');
+                    roastTimer += dt;
+                    sizzleTimer += dt;
+                    if (sizzleTimer > 0.35) {
+                        sizzleTimer = 0;
+                        audio.play('sizzle');
+                    }
+                    if (avatar.userData.marshmallow) {
+                        avatar.userData.marshmallow.rotation.y += dt * 1.8;
+                        const mMat = avatar.userData.marshmallow.material;
+                        if (roastTimer < 2.0) {
+                            const k = roastTimer / 2.0;
+                            mMat.color.copy(color.set(0xffffff).lerp(new THREE.Color(0xfef08a), k));
+                        } else if (roastTimer < 5.0) {
+                            const k = (roastTimer - 2.0) / 3.0;
+                            mMat.color.copy(color.set(0xfef08a).lerp(new THREE.Color(0xb45309), k));
+                            if (roastTimer >= 4.0 && !toasted) {
+                                toasted = true;
+                                markDone('marshmallow');
+                                ui.toast({ icon: '🍢', title: 'Golden Marshmallow', body: 'Toasted to sweet, golden-brown perfection!' });
+                                audio.play('chime', [79, 83, 86, 91]);
+                            }
+                        } else {
+                            const k = Math.min(1.0, (roastTimer - 5.0) / 3.0);
+                            mMat.color.copy(color.set(0xb45309).lerp(new THREE.Color(0x18181b), k));
+                            if (roastTimer >= 7.0 && !burnt) {
+                                burnt = true;
+                                ui.toast({ icon: '🔥', title: 'Crispy Char!', body: 'Extra crispy! Some like it charred.' });
+                                audio.play('pop');
+                            }
+                        }
+                    }
+                } else {
+                    setPose(avatar, 'sit');
+                    time.fast = ctx.input.held('t') || ctx.input.held('T');
+                }
+            },
+            end() {
+                if (avatar.userData.roastStick) avatar.userData.roastStick.visible = false;
                 const f = anchor.front ?? (() => { const d = facingVec(anchor.facing); return { x: anchor.x + d.x * 1.1, z: anchor.z + d.z * 1.1 }; })();
                 standAt(f.x, f.z, anchor.facing);
             },
@@ -160,6 +272,8 @@ export function createActivities(ctx) {
     }
     const fishing = {
         id: 'fish', label: 'Go fishing',
+        consumesAction: true,
+        leaveLabel: 'Put rod away',
         state: 'ready', timer: 0, castT: 0,
         start() {
             const a = anchors.fishing;
@@ -279,6 +393,7 @@ export function createActivities(ctx) {
     // ---------- hammock (stargazing, wishes) ----------
     const hammock = {
         id: 'hammock', label: 'Lie in the hammock',
+        leaveLabel: 'Get up',
         start() {
             const h = anchors.hammock;
             h.sway.attach(avatar);
@@ -319,6 +434,7 @@ export function createActivities(ctx) {
     // ---------- rope swing ----------
     const swing = {
         id: 'swing', label: 'Swing from the old tree',
+        leaveLabel: 'Hop off',
         amp: 0.05, phase: 0, lastSide: 0,
         start() {
             const s = anchors.swing;
@@ -340,13 +456,16 @@ export function createActivities(ctx) {
             this.amp = THREE.MathUtils.clamp(this.amp, 0, 0.62);
             this.phase += dt * Math.sqrt(9.8 / s.seatDrop);
             s.group.rotation.x = Math.sin(this.phase) * this.amp;
-            avatar.userData.body.rotation.x = -Math.cos(this.phase) * this.amp * 0.4;
+            avatar.userData.swingPhase = this.phase;
+            avatar.userData.swingAmp = this.amp;
             const side = Math.sign(Math.cos(this.phase));
             if (side !== this.lastSide && this.amp > 0.25) audio.play('creak');
             this.lastSide = side;
         },
         end() {
             ctx.env.swinging = false;
+            avatar.userData.swingPhase = 0;
+            avatar.userData.swingAmp = 0;
             const s = anchors.swing;
             const d = facingVec(s.yaw);
             standAt(s.pivot.x - d.x * 1.2, s.pivot.z - d.z * 1.2, s.yaw);
@@ -357,23 +476,33 @@ export function createActivities(ctx) {
     // ---------- telescope ----------
     const telescope = {
         id: 'telescope', label: 'Look through the telescope',
+        leaveLabel: 'Step back',
         start() {
             const tp = anchors.telescope;
             const back = facingVec(tp.facing).multiplyScalar(-0.8);
             standAt(tp.x + back.x, tp.z + back.z, tp.facing);
-            player.setBusy(true);
+            player.setBusy(true, 'look');
             setPose(avatar, 'look');
-            rig.firstPerson = { eye: tp.eye.clone(), yaw: tp.facing + Math.PI, pitch: 0.02, fov: 14, maxPitch: 0.9 };
+            avatar.visible = false;
+            rig.firstPerson = { eye: tp.eye.clone(), yaw: tp.facing + Math.PI, baseFacing: tp.facing + Math.PI, pitch: 0.02, fov: 14, maxPitch: 0.9 };
             ui.setVignette(true);
             ui.setControls(['Drag to look · scroll to zoom', '<kbd>E</kbd> step back']);
             markDone('telescope');
         },
-        end() { ui.setVignette(false); setPose(avatar, 'idle'); },
+        end() {
+            avatar.visible = true;
+            ui.setVignette(false);
+            setPose(avatar, 'idle');
+            const tp = anchors.telescope;
+            rig.setView({ yaw: tp.facing + Math.PI, pitch: 0.32, distance: 7.5 }, true);
+        },
     };
 
     // ---------- lighthouse ----------
     const lighthouse = {
         id: 'lighthouse', label: 'Climb the lighthouse',
+        hasAsyncEnd: true,
+        leaveLabel: 'Climb down',
         start() {
             const L = anchors.lighthouse;
             audio.play('door');
@@ -382,20 +511,25 @@ export function createActivities(ctx) {
                 if (active !== lighthouse || ticket !== this.ticket) return;     // cancelled while fading
                 L.climbed = true;
                 standAt(L.gallery.x, L.gallery.z, L.galleryFacing);
-                player.setBusy(true);
+                player.setBusy(true, 'idle');
                 avatar.position.y = L.gallery.y;
                 lookFrom(L.top.clone().addScaledVector(facingVec(L.galleryFacing), 3), L.galleryFacing + Math.PI + 0.55, 0.14, 10, { min: 4, max: 30 });
                 ui.setControls(['Drag to look around · scroll to zoom', '<kbd>E</kbd> climb down']);
                 markDone('lighthouse');
             });
         },
-        end() {
+        end(done) {
             const L = anchors.lighthouse;
-            this.ticket = (this.ticket ?? 0) + 1;
+            const ticket = (L.ticket = (L.ticket ?? 0) + 1);
             ui.fade(() => {
+                if (ticket !== L.ticket) {
+                    done?.();
+                    return;
+                }
                 L.climbed = false;
                 standAt(L.door.x, L.door.z, L.door.facing + Math.PI);
                 rig.setView({ distance: 9, pitch: 0.42 }, true);
+                done?.();
             });
         },
     };
@@ -471,6 +605,7 @@ export function createActivities(ctx) {
         }
     }
     function nearShoreline() {
+        if (cottage?.isInside) return false;
         const p = avatar.position, f = facingVec(player.heading);
         const here = surfaceKind(p.x, p.z);
         if (here !== 'sand' && here !== 'water' && here !== 'wood') return false;
@@ -635,10 +770,48 @@ export function createActivities(ctx) {
                 if (p.metric) el.append(h('div', { class: 'info-metric' }, p.metric));
                 if (p.summary) el.append(h('p', {}, p.summary));
                 if (p.techStack?.length) el.append(h('ul', { class: 'info-chips' }, p.techStack.map(t => h('li', {}, t))));
-                const actions = h('div', { class: 'info-actions' }, h('a', { class: 'btn-primary', href: `/projects/${encodeURIComponent(p.slug)}` }, 'Read the case study →'));
-                if (p.projectUrl) actions.append(h('a', { class: 'chip', href: p.projectUrl, target: '_blank', rel: 'noopener' }, 'Live'));
-                if (p.gitHubUrl) actions.append(h('a', { class: 'chip', href: p.gitHubUrl, target: '_blank', rel: 'noopener' }, 'Source'));
+
+                const detailEl = h('div', { class: 'info-case-study' });
+                el.append(detailEl);
+
+                const actions = h('div', { class: 'info-actions' }, h('a', { class: 'btn-primary', href: `/projects/${encodeURIComponent(p.slug)}`, target: '_top' }, 'Read full web case study →'));
+                if (p.projectUrl) actions.append(h('a', { class: 'chip', href: p.projectUrl, target: '_blank', rel: 'noopener' }, 'Live ↗'));
+                if (p.gitHubUrl) actions.append(h('a', { class: 'chip', href: p.gitHubUrl, target: '_blank', rel: 'noopener' }, 'Source ↗'));
                 el.append(actions);
+
+                fetchProjectDetail(p.slug).then(detail => {
+                    if (!detail || !detailEl.isConnected) return;
+                    detailEl.replaceChildren();
+                    if (detail.myRole) {
+                        detailEl.append(h('div', { class: 'info-role-badge' }, h('span', { class: 'role-tag' }, 'Role: '), detail.myRole));
+                    }
+                    if (detail.challenge?.length) {
+                        detailEl.append(h('h4', { class: 'info-section-title' }, 'The Challenge'));
+                        for (const para of detail.challenge) {
+                            if (para && para.trim()) detailEl.append(h('p', {}, para));
+                        }
+                    }
+                    if (detail.solution?.length) {
+                        detailEl.append(h('h4', { class: 'info-section-title' }, 'What I Built / Solution'));
+                        for (const para of detail.solution) {
+                            if (para && para.trim()) detailEl.append(h('p', {}, para));
+                        }
+                    }
+                    if (detail.outcome?.length) {
+                        detailEl.append(h('h4', { class: 'info-section-title' }, 'Outcome & Impact'));
+                        for (const para of detail.outcome) {
+                            if (para && para.trim()) detailEl.append(h('p', {}, para));
+                        }
+                    }
+                    if (detail.highlights?.length) {
+                        detailEl.append(h('h4', { class: 'info-section-title' }, 'Key Highlights'));
+                        const ul = h('ul', { class: 'info-highlights-list' });
+                        for (const item of detail.highlights) {
+                            if (item && item.trim()) ul.append(h('li', {}, item));
+                        }
+                        detailEl.append(ul);
+                    }
+                }).catch(() => {});
             },
         });
         journal.read[`project:${p.slug}`] = true;
@@ -647,11 +820,229 @@ export function createActivities(ctx) {
         else markSeen('gallery');
     }
 
-    function drive() {
-        stop();
-        player.enterCar();
-        ui.setControls(['<kbd>W A S D</kbd> drive · <kbd>Space</kbd> brake', '<kbd>E</kbd> get out (when stopped)']);
-        markDone('drive');
+    const rowboatActivity = {
+        id: 'rowboat',
+        label: 'Take the rowboat',
+        consumesAction: true,
+        leaveLabel: 'Step ashore',
+        speed: 0,
+        heading: 0,
+        turnSpeed: 0,
+        strokePhase: 0,
+        lastDip: 0,
+        canDisembark: true,
+
+        start() {
+            const boat = anchors.rowboat;
+            if (!boat) return;
+            boat.userData.isRowing = true;
+            boat.userData.seat.add(avatar);
+            avatar.scale.setScalar(1);
+            avatar.position.set(0, -SIT_DROP + 0.05, 0);
+            avatar.rotation.set(0, 0, 0);
+            player.setBusy(true, 'row');
+            setPose(avatar, 'row');
+
+            this.speed = 0;
+            this.heading = boat.rotation.y;
+            this.turnSpeed = 0;
+            this.strokePhase = 0;
+            this.lastDip = 0;
+            this.canDisembark = true;
+
+            lookFrom(boat.position, this.heading + Math.PI, 0.26, 9.5, { min: 4, max: 22 });
+            ui.setControls(['<kbd>W</kbd> row forward · <kbd>S</kbd> backwater · <kbd>A D</kbd> steer', '<kbd>E</kbd> moor / step ashore (near pier or beach)']);
+            markDone('rowboat');
+        },
+
+        update(dt, t) {
+            const boat = anchors.rowboat;
+            if (!boat) return;
+
+            const forward = (input.held('w') || input.held('W') || input.held('arrowup') || input.held('ArrowUp')) ? 1 : 0;
+            const backward = (input.held('s') || input.held('S') || input.held('arrowdown') || input.held('ArrowDown')) ? 1 : 0;
+            const steerLeft = (input.held('a') || input.held('A') || input.held('arrowleft') || input.held('ArrowLeft')) ? 1 : 0;
+            const steerRight = (input.held('d') || input.held('D') || input.held('arrowright') || input.held('ArrowRight')) ? 1 : 0;
+
+            const ax = steerRight - steerLeft;
+            const ay = forward - backward;
+
+            if (ay > 0) {
+                this.strokePhase += dt * 3.8;
+                const power = Math.max(0, Math.sin(this.strokePhase));
+                this.speed += power * 4.4 * dt;
+                if (Math.sin(this.strokePhase) > 0.85 && (t - this.lastDip) > 0.75) {
+                    this.lastDip = t;
+                    audio.play('oar');
+                    const bpos = boat.position;
+                    const ch = Math.cos(this.heading), sh = Math.sin(this.heading);
+                    life.splash(bpos.x - ch * 1.8, bpos.z + sh * 1.8, 0.28, t);
+                    life.splash(bpos.x + ch * 1.8, bpos.z - sh * 1.8, 0.28, t);
+                }
+            } else if (ay < 0) {
+                this.strokePhase -= dt * 2.8;
+                this.speed -= 2.6 * dt;
+            } else {
+                this.strokePhase += (0 - this.strokePhase) * Math.min(1, dt * 2.5);
+            }
+
+            // Bow cutwater wake ripple as boat glides forward
+            if (Math.abs(this.speed) > 0.45 && (t - (this.lastWake || 0)) > 0.28) {
+                this.lastWake = t;
+                const ch = Math.cos(this.heading), sh = Math.sin(this.heading);
+                life.splash(boat.position.x + sh * 1.6, boat.position.z + ch * 1.6, 0.18, t);
+            }
+
+            this.turnSpeed += (ax * -1.5 - this.turnSpeed) * Math.min(1, dt * 5.0);
+            this.heading += this.turnSpeed * dt;
+
+            const drag = 0.95;
+            this.speed -= Math.sign(this.speed) * Math.min(Math.abs(this.speed), drag * dt);
+            this.speed = THREE.MathUtils.clamp(this.speed, -1.8, 4.8);
+
+            const leftOar = boat.userData.leftOar;
+            const rightOar = boat.userData.rightOar;
+            if (leftOar && rightOar) {
+                const dip = Math.sin(this.strokePhase);
+                const sweep = Math.cos(this.strokePhase);
+                leftOar.rotation.y = sweep * 0.42 + (ax > 0 ? 0.22 : 0);
+                rightOar.rotation.y = -sweep * 0.42 + (ax < 0 ? -0.22 : 0);
+                leftOar.rotation.x = Math.max(-0.25, -dip * 0.22);
+                rightOar.rotation.x = Math.max(-0.25, -dip * 0.22);
+            }
+            avatar.userData.rowStroke = this.strokePhase;
+
+            const nextX = boat.position.x + Math.sin(this.heading) * this.speed * dt;
+            const nextZ = boat.position.z + Math.cos(this.heading) * this.speed * dt;
+            const groundH = heightAt(nextX, nextZ);
+            const distCenter = Math.hypot(nextX, nextZ);
+
+            if (groundH < -0.22 && distCenter < 145) {
+                boat.position.x = nextX;
+                boat.position.z = nextZ;
+            } else {
+                this.speed *= -0.3;
+                audio.play('step', 'wood');
+            }
+
+            const waterY = water.heightAt(boat.position.x, boat.position.z, t);
+            boat.position.y = waterY + 0.32;
+            const fwdY = water.heightAt(boat.position.x + Math.sin(this.heading) * 1.5, boat.position.z + Math.cos(this.heading) * 1.5, t);
+            const sideY = water.heightAt(boat.position.x + Math.cos(this.heading) * 0.8, boat.position.z - Math.sin(this.heading) * 0.8, t);
+            const wavePitch = (fwdY - waterY) / 1.5;
+            const waveRoll = (sideY - waterY) / 0.8;
+            const strokeRock = Math.sin(this.strokePhase) * 0.04 * Math.abs(this.speed);
+
+            boat.rotation.set(0, 0, 0);
+            boat.rotateY(this.heading);
+            boat.rotateX(wavePitch + strokeRock);
+            boat.rotateZ(-waveRoll + this.turnSpeed * 0.12);
+
+            // Hull creak audio in swell & stroke surges
+            if ((Math.abs(strokeRock) > 0.02 || Math.abs(wavePitch) > 0.038) && (t - (this.lastCreak || 0)) > 3.4) {
+                this.lastCreak = t;
+                audio.play('creak');
+            }
+
+            rig.override = { focus: boat.position, limits: { min: 4, max: 22 } };
+            rig.behind(this.heading, Math.min(1, dt * 1.8));
+
+            const distMoor = boat.position.distanceTo(boat.userData.moor);
+            const nearCoast = groundH > -0.8 && distCenter < 90;
+            if (distMoor < 4.2 || nearCoast) {
+                this.canDisembark = true;
+                this.leaveLabel = 'Step ashore';
+            } else {
+                this.canDisembark = false;
+                this.leaveLabel = 'Row closer to shore to step out';
+            }
+        },
+
+        end() {
+            scene.attach(avatar);
+            avatar.scale.setScalar(S);
+            setPose(avatar, 'idle');
+            player.setBusy(false);
+            const boat = anchors.rowboat;
+            if (boat) {
+                boat.userData.isRowing = false;
+                const distMoor = boat.position.distanceTo(boat.userData.moor);
+                if (distMoor < 5.5) {
+                    standAt(anchors.pierEnd.x - 1.2, anchors.pierEnd.z - 4.5, boat.userData.moorYaw);
+                } else {
+                    const landDist = Math.hypot(boat.position.x, boat.position.z);
+                    const dirX = -boat.position.x / landDist;
+                    const dirZ = -boat.position.z / landDist;
+                    let landX = boat.position.x + dirX * 2.5;
+                    let landZ = boat.position.z + dirZ * 2.5;
+                    for (let step = 1; step <= 15; step++) {
+                        const testX = boat.position.x + dirX * step * 1.5;
+                        const testZ = boat.position.z + dirZ * step * 1.5;
+                        if (heightAt(testX, testZ) > 0.1) {
+                            landX = testX;
+                            landZ = testZ;
+                            break;
+                        }
+                    }
+                    standAt(landX, landZ, Math.atan2(dirX, dirZ));
+                }
+                // Return boat to pier mooring so it is ready for next boarding and never stranded offshore
+                boat.position.copy(boat.userData.moor);
+                boat.rotation.set(0, boat.userData.moorYaw, 0);
+            }
+            release();
+        },
+    };
+
+    function readBuoyPlaque() {
+        audio.play('chime', [79, 83, 86]);
+        ui.info({
+            kicker: 'OFFSHORE DISCOVERY · EASTER EGG',
+            title: 'The Outer Buoy',
+            build(el, h) {
+                el.append(h('p', {}, 'You rowed all the way out into the open sea! A true explorer.'));
+                el.append(h('p', {}, 'Most visitors stick to the well-trodden paths, but you ventured out into the deep swell. If you are looking for an engineer with this kind of curiosity, thoroughness, and drive to build every detail with care:'));
+                const actions = h('div', { class: 'info-actions' });
+                actions.append(h('a', { class: 'btn-primary', href: '/#contact', target: '_top' }, 'Let\'s Connect →'));
+                actions.append(h('a', { class: 'chip', href: '/cv', target: '_top' }, 'View CV'));
+                el.append(actions);
+            },
+        });
+    }
+
+    function readSignpost() {
+        if (anchors.signpost) face(anchors.signpost);
+        quick('read', 0.3, () => {});
+        audio.play('click');
+        ui.info({
+            kicker: 'CROSSROADS · TRAIL GUIDE',
+            title: 'Island Signpost',
+            build(el, h) {
+                el.append(h('p', {}, 'A weathered cedar signpost stands at the junction, pointing visitors to landmarks across the island:'));
+                const list = h('div', { class: 'signpost-guide-list' });
+                const guides = [
+                    { icon: '⚓', name: 'The Pier & Rowboat', dist: '48m West', desc: 'Wooden pier on the ocean shore. Go fishing for 12 species of fish, or row out into the open sea.' },
+                    { icon: '🔥', name: 'South Beach & Campfire', dist: '60m South', desc: 'Warm fire pit on the sand. Roast marshmallows golden-brown and release sky lanterns into the dusk.' },
+                    { icon: '🎨', name: 'Project Gallery', dist: '48m East', desc: 'Open-air exhibition in the meadow with pedestals and dynamic case studies of featured engineering work.' },
+                    { icon: '🌾', name: 'The Windmill', dist: '52m North-East', desc: 'Turning sails high on the grassy bluff. Resting bench overlooking the crashing surf.' },
+                    { icon: '🧭', name: 'Career Trail & Lookout', dist: '62m North', desc: 'Milestone trail climbing from the cottage to the summit telescope with panoramic views.' },
+                    { icon: '🗼', name: 'The Lighthouse', dist: '108m North-East', desc: 'Guiding light on the far rocky cape. Climb the spiral stairs to the top beacon deck.' },
+                ];
+                for (const g of guides) {
+                    list.append(h('div', { class: 'signpost-guide-item' },
+                        h('div', { class: 'signpost-guide-icon' }, g.icon),
+                        h('div', { class: 'signpost-guide-content' },
+                            h('div', { class: 'signpost-guide-header' },
+                                h('span', { class: 'signpost-guide-name' }, g.name),
+                                h('span', { class: 'signpost-guide-dist' }, g.dist)
+                            ),
+                            h('p', { class: 'signpost-guide-desc' }, g.desc)
+                        )
+                    ));
+                }
+                el.append(list);
+            },
+        });
     }
 
     // ---------- prompts ----------
@@ -667,12 +1058,12 @@ export function createActivities(ctx) {
             if (d < radius) list.push({ id, d, label, run, unavailable, pos });
         };
         add('mail', anchors.mailbox, 2.4, 'Read the letter', readLetter);
+        if (anchors.signpost) add('signpost', anchors.signpost, 3.2, 'Read the trail signpost', readSignpost);
         for (const c of showcase.career) add('career', c, 2.4, `Read: ${c.company.company}`, () => readCompany(c));
         for (const g of showcase.gallery) add('gallery', g, 2.2, `View: ${g.project.title}`, () => viewProject(g));
         add('fish', anchors.fishing, 3, 'Go fishing', () => begin(fishing));
-        anchors.campfire.seats.forEach(s => add('campfire', s, 1.8, 'Sit by the fire', () => begin(sitActivity(s, {
-            id: 'campfire', label: 'Sit by the fire',
-            camera: () => lookFrom(anchors.campfire.center.clone().add(new THREE.Vector3(0, 0.8, 0)), s.facing + Math.PI + 0.75, 0.3, 8.5),
+        anchors.campfire.seats.forEach(s => add('campfire', s, 1.8, 'Sit by the fire', () => begin(campfireActivity(s, {
+            camera: () => lookFrom(anchors.campfire.center.clone().add(new THREE.Vector3(0, 0.55, 0)), s.facing + Math.PI + 0.65, 0.26, 6.8),
         }))));
         add('hammock', anchors.hammock, 2.6, 'Lie in the hammock', () => begin(hammock));
         add('swing', { x: anchors.swing.pivot.x, z: anchors.swing.pivot.z }, 2.2, 'Sit on the swing', () => begin(swing));
@@ -688,9 +1079,26 @@ export function createActivities(ctx) {
             else add('lantern', pos, 9, 'Come back after sunset to release a lantern', null, true);
         }
         add('cat', life.cat.group.position, 1.8, life.cat.following ? 'Pet the cat (let it nap)' : 'Pet the cat', petCat);
-        add('drive', anchors.car.position, 3.4, 'Take the car for a drive', drive);
+        if (anchors.rowboat) {
+            add('rowboat', anchors.rowboat.position, 3.4, 'Take the rowboat', () => begin(rowboatActivity));
+        }
+        if (anchors.buoy) {
+            add('buoy', anchors.buoy.position, 5.0, 'Read the offshore plaque', readBuoyPlaque);
+        }
         for (const s of shells) if (!s.collected) add('shells', s.mesh.position, 1.6, 'Pick up the shell', () => collectShell(s));
         if (nearShoreline() && !skipping) add('skip', avatar.position, 1, 'Skip a stone', skipStone);
+        if (treasure?.candidate) {
+            const tc = treasure.candidate(avatar.position);
+            if (tc) list.push(tc);
+        }
+        if (cottage?.candidate) {
+            const cc = cottage.candidate(avatar.position);
+            if (cc) list.push(cc);
+        }
+        if (beachBall?.candidate) {
+            const bc = beachBall.candidate(avatar.position);
+            if (bc) list.push(bc);
+        }
         // Ambient options (skipping stones, the lantern hint) yield to anything placed nearby.
         const rank = c => (c.unavailable ? 2 : 0) + (c.id === 'skip' || c.id === 'lantern' ? 1 : 0);
         return list.sort((a, b) => rank(a) - rank(b) || a.d - b.d);
@@ -717,20 +1125,27 @@ export function createActivities(ctx) {
         if (active) {
             active.update?.(dt, t);
             offered = null;
-            ui.prompt(null);
+            if (active.id === 'rowboat' && !active.canDisembark) {
+                ui.prompt(null);
+            } else {
+                ui.prompt({ key: 'E', label: active.leaveLabel || 'Leave' });
+            }
             return;
         }
-        if (player.mode === 'drive') {
-            const slow = Math.abs(player.car.speed) < 3;
-            ui.prompt(slow ? { key: 'E', label: 'Get out' } : null);
-            offered = slow ? { run: () => { if (player.exitCar()) ui.setControls(null); } } : null;
-            return;
-        }
-        if (player.mode === 'busy' && !pending && !document.getElementById('fade').classList.contains('on')) {
+        const externalBusy = (cottage?.isBusy || treasure?.isBusy);
+        if (player.mode === 'busy' && !pending && !externalBusy && !asyncStopping && !document.getElementById('fade')?.classList.contains('on')) {
             stuckFor += dt;
             if (stuckFor > 0.6) { stuckFor = 0; standAt(avatar.position.x, avatar.position.z); release(); player.setBusy(false); }
         } else stuckFor = 0;
-        if (player.mode !== 'walk') { ui.prompt(null); return; }
+
+        if (cottage?.isSitting) {
+            const cc = cottage.candidate(avatar.position);
+            offered = cc ?? null;
+            ui.prompt(offered ? { key: 'E', label: offered.label } : null);
+            return;
+        }
+
+        if (player.mode !== 'walk' || asyncStopping) { ui.prompt(null); return; }
         const list = candidates();
         for (const c of list) markSeen(c.id);
         offered = list[0] ?? null;
@@ -743,7 +1158,15 @@ export function createActivities(ctx) {
         get active() { return active; },
         /** E / the prompt button: use what's offered, or leave the current activity. */
         interact() {
-            if (active) { stop(); return true; }
+            if (active) {
+                if (active.id === 'rowboat' && !active.canDisembark) {
+                    ui.toast({ icon: '⚓', title: 'Rowboat', body: 'Row closer to the pier or sandy shore to step out.' });
+                    return false;
+                }
+                stop();
+                return true;
+            }
+            if (asyncStopping) return false;
             if (offered && !offered.unavailable && offered.run) { offered.run(); return true; }
             return false;
         },
@@ -751,13 +1174,19 @@ export function createActivities(ctx) {
         stop,
         /** Tap on the ground: if it's next to something to do, walk over and do it. */
         tapNear(x, z) {
-            if (active || player.mode !== 'walk') return false;
+            if (active || asyncStopping || player.mode !== 'walk') return false;
             const spots = [
                 ['fish', anchors.fishing], ['mail', anchors.mailbox], ['hammock', anchors.hammock], ['telescope', anchors.telescope],
-                ['lighthouse', anchors.lighthouse.door], ['drive', anchors.car.position], ['swing', anchors.swing.pivot], ['cat', life.cat.group.position],
+                ['lighthouse', anchors.lighthouse.door], ['swing', anchors.swing.pivot], ['cat', life.cat.group.position],
+                ['cottage', anchors.door],
+                ...(anchors.signpost ? [['signpost', anchors.signpost]] : []),
+                ...(anchors.rowboat ? [['rowboat', anchors.rowboat.position]] : []),
+                ...(anchors.buoy ? [['buoy', anchors.buoy.position]] : []),
+                ...(beachBall?.pos ? [['beachball', beachBall.pos]] : []),
                 ...anchors.benches.map(b => ['bench', b]), ...anchors.campfire.seats.map(s => ['campfire', s]),
                 ...showcase.career.map(c => ['career', c]), ...showcase.gallery.map(g => ['gallery', g]),
                 ...shells.filter(s => !s.collected).map(s => ['shells', s.mesh.position]),
+                ...(treasure?.activeTreasure ? [['treasure', treasure.state === 'bottle' ? treasure.activeTreasure.bottlePos : treasure.activeTreasure.digPos]] : []),
             ];
             let best = null;
             for (const [id, pos] of spots) {

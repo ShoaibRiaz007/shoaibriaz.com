@@ -156,6 +156,79 @@ public class PublicSiteTests
     [InlineData("")]
     [InlineData(null)]
     public void ProofFigure_NullWhenNotLedByANumber(string? metric) => Assert.Null(PublicSite.ProofFigure(metric));
+
+    [Fact]
+    public void Describe_LeadsWithFullNameAndIncludesLocation()
+    {
+        var bio = new Bio
+        {
+            FullName = "Shoaib Riaz",
+            Tagline = "I build AI-powered .NET software.",
+            Location = "Lahore, Punjab, Pakistan"
+        };
+        var desc = PublicSite.Describe(bio);
+        Assert.StartsWith("Shoaib Riaz — ", desc);
+        Assert.EndsWith("Based in Lahore, Pakistan.", desc);
+        Assert.InRange(desc.Length, 1, PublicSite.DescriptionMax);
+    }
+
+    [Fact]
+    public void Describe_LongTaglineTruncatesCleanlyWithinMax()
+    {
+        var bio = new Bio
+        {
+            FullName = "Shoaib Riaz",
+            Tagline = "I build AI-powered .NET software, from backend APIs to desktop add-ins and real-time Unity clients, and lead the team that ships it across the world.",
+            Location = "Lahore, Punjab, Pakistan"
+        };
+        var desc = PublicSite.Describe(bio);
+        Assert.StartsWith("Shoaib Riaz — ", desc);
+        Assert.EndsWith("Based in Lahore, Pakistan.", desc);
+        Assert.True(desc.Length <= PublicSite.DescriptionMax);
+        Assert.Contains("…", desc);
+    }
+
+    [Fact]
+    public void Describe_HandlesMissingNameOrLocationOrTagline()
+    {
+        Assert.Equal("Portfolio.", PublicSite.Describe(new Bio()));
+        Assert.Equal("Portfolio. Based in Lahore, Pakistan.", PublicSite.Describe(new Bio { Location = "Lahore, Pakistan" }));
+        Assert.Equal("Jane Doe — Portfolio.", PublicSite.Describe(new Bio { FullName = "Jane Doe" }));
+    }
+
+    [Fact]
+    public void StructuredData_IncludesDisambiguatingDescription()
+    {
+        var bio = new Bio
+        {
+            FullName = "Shoaib Riaz",
+            Headline = "Team Lead · .NET",
+            Location = "Lahore, Pakistan"
+        };
+        var facts = new PersonFacts("Team Lead", "Lucen Software", new List<string>(), new List<string>());
+        var json = PublicSite.StructuredData(bio, "https://shoaibriaz.com", "https://shoaibriaz.com", null, facts, true);
+        Assert.Contains("disambiguatingDescription", json);
+        Assert.Contains("Team Lead at Lucen Software, based in Lahore, Pakistan", json);
+    }
+
+    [Fact]
+    public void SeedContent_Projects_HaveRichCaseStudyContent()
+    {
+        var projects = Portfolio.Infrastructure.Persistence.SeedContent.Projects();
+        Assert.NotEmpty(projects);
+        foreach (var p in projects)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(p.Title), $"Project {p.Slug} missing Title");
+            Assert.False(string.IsNullOrWhiteSpace(p.Summary), $"Project {p.Slug} missing Summary");
+            Assert.False(string.IsNullOrWhiteSpace(p.Description), $"Project {p.Slug} missing Description");
+            Assert.False(string.IsNullOrWhiteSpace(p.TechStack), $"Project {p.Slug} missing TechStack");
+            Assert.False(string.IsNullOrWhiteSpace(p.Challenge), $"Project {p.Slug} missing Challenge");
+            Assert.False(string.IsNullOrWhiteSpace(p.Solution), $"Project {p.Slug} missing Solution");
+            Assert.False(string.IsNullOrWhiteSpace(p.Outcome), $"Project {p.Slug} missing Outcome");
+            Assert.False(string.IsNullOrWhiteSpace(p.Highlights), $"Project {p.Slug} missing Highlights");
+            Assert.True(p.Summary.Length <= 250, $"Project {p.Slug} summary too long: {p.Summary.Length}");
+        }
+    }
 }
 
 public class NotFoundRouteTests

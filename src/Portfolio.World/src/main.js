@@ -11,10 +11,14 @@ import { buildVegetation, WIND } from './vegetation.js';
 import { createLife } from './life.js';
 import { createInput, createPlayer, createRig } from './player.js';
 import { createActivities } from './activities.js';
+import { createTreasureHunt } from './treasure.js';
+import { createCottage } from './cottage.js';
+import { createBeachBall } from './beachball.js';
 import { createAudio } from './audio.js';
 import { createUI, firstNameOf } from './ui.js';
 import { clearSave, loadSave, writeSave } from './save.js';
 import { reportVisit } from './telemetry.js';
+import { loadSiteData } from './api.js';
 
 const $ = id => document.getElementById(id);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -38,13 +42,10 @@ async function boot() {
     save.journal.visits++;
     progress(0.05);
 
-    // The island works without the API. With it, the profile personalises the title, letter and back link, and
-    // the experience and projects become the Career Trail and the Gallery (showcase.js).
-    let profile = null, site = null;
-    try {
-        const res = await fetch('/api/site', { headers: { Accept: 'application/json' } });
-        if (res.ok) { site = await res.json(); profile = site.profile ?? null; }
-    } catch { /* offline or API down: the island still works */ }
+    // Dynamic API integration: live projects, career milestones, and profile data from ASP.NET Core endpoints.
+    // Falls back gracefully to high-fidelity seed data if offline or unreachable.
+    const site = await loadSiteData();
+    const profile = site?.profile ?? null;
     if (profile?.fullName) {
         const first = firstNameOf(profile.fullName);
         $('titleName').textContent = `${first}’s Island`;
@@ -114,7 +115,7 @@ async function boot() {
     audio.settings.sound = save.settings.sound;
     audio.settings.music = save.settings.music;
     const player = createPlayer(scene, {
-        colliders, rig, input, carObj: props.anchors.car,
+        colliders, rig, input,
         onStep: (kind, speed) => {
             audio.play('step', kind);
             if (kind === 'water' && speed > 1) { const p = player.avatar.position; life.splash(p.x, p.z, 0.35, clock.t); }
@@ -126,8 +127,12 @@ async function boot() {
     const env = { night: 0, gust: 1, water, hammockSwing: 0.06, stargazing: false, swinging: false };
     const clock = { t: 0 };
     let actionPressed = false;
+    const treasure = createTreasureHunt(scene, { player, audio, ui, save });
+    const cottage = createCottage(scene, { player, rig, audio, ui, save, colliders, anchors: props.anchors });
+    const beachBall = createBeachBall(scene, { player, audio, ui, save, life, water, anchors: props.anchors });
     const ctx = {
         scene, player, rig, life, audio, ui, anchors: props.anchors, showcase, save, water, time, env, t: 0,
+        treasure, cottage, beachBall,
         input: { held: input.held, consumeAction: () => { const a = actionPressed; actionPressed = false; return a; } },
     };
     const activities = createActivities(ctx);
@@ -137,28 +142,53 @@ async function boot() {
     input.on('action', (k, e) => {
         if (!entered) return;
         if (photoMode) { if (k === 'escape' || k === 'p') setPhoto(false); return; }
+        if (ui.anyOpen()) {
+            if (k === 'escape' || k === 'e' || k === 'enter' || k === ' ') {
+                ui.closeAll();
+                return;
+            }
+            if (ui.infoOpen?.() || document.getElementById('letter')?.open) {
+                if (['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright'].includes(k)) {
+                    ui.closeAll();
+                    return;
+                }
+            }
+            return;
+        }
         if (k === 'j') return ui.toggleJournal();
         if (k === 'm') return ui.toggleMap();
         if (k === 't') return ui.toggleTime();
         if (k === 'h' || k === '?') return ui.toggleHelp();
-        if (ui.anyOpen()) return;
         if (k === 'p') return setPhoto(true);
         if (k === 'e' || k === 'enter') { if (e.target.closest?.('button, a')) return; activities.interact(); return; }
         if (k === 'escape' && activities.active) return activities.stop();
-        if (k === 'escape' && player.mode === 'drive') return activities.interact();
-        if (k === ' ') actionPressed = true;
+        if (k === ' ') { actionPressed = true; if (player.mode === 'walk') beachBall.strike(); }
         if (k === 'f') activities.plant();
     });
     ui.on('interact', () => activities.interact());
     ui.on('plant', () => activities.plant());
+    ui.on('panelClosed', () => {
+        if (player.mode === 'busy' && !activities.active && !treasure.isBusy && !cottage?.isBusy) {
+            player.setBusy(false);
+        }
+    });
 
     // Tap or click: inside an activity it's the action button; otherwise walk to the ground you clicked.
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
     const marker = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.38, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
     scene.add(marker);
     input.on('tap', (x, y) => {
-        if (!entered || photoMode || ui.anyOpen()) return;
-        if (activities.active) { actionPressed = true; return; }
+        if (!entered || photoMode) return;
+        if (ui.anyOpen()) {
+            ui.closeAll();
+            return;
+        }
+        if (activities.active) {
+            if (activities.active.consumesAction) {
+                actionPressed = true;
+            }
+            return;
+        }
         if (player.mode !== 'walk') return;
         ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
         ray.setFromCamera(ndc, camera);
@@ -230,7 +260,7 @@ async function boot() {
     ]);
     ui.on('travel', place => {
         activities.stop();
-        if (player.mode === 'drive') { player.car.speed = 0; player.exitCar(); ui.setControls(null); }
+        cottage?.exitToPorch?.();
         ui.fade(() => {
             player.place(place.x, place.z, place.facing);
             rig.focus.copy(player.followPoint());
@@ -274,7 +304,7 @@ async function boot() {
 
     // ---- Frame loop ----
     const timer = new THREE.Timer();
-    const focus = new THREE.Vector3(), follow = new THREE.Vector3(), wp = new THREE.Vector3();
+    const focus = new THREE.Vector3(), follow = new THREE.Vector3(), wp = new THREE.Vector3(), V3_ZERO = new THREE.Vector3();
     let running = true, lastSave = 0, clockShown = -1, fpsFrames = 0, fpsTime = 0, fpsChecked = false;
     document.addEventListener('visibilitychange', () => {
         running = !document.hidden;
@@ -319,6 +349,9 @@ async function boot() {
         if (entered) {
             player.update(dt, t);
             activities.update(dt, t);
+            treasure.update(dt, t);
+            cottage.update(dt, t);
+            beachBall.update(dt, t, env);
             rig.update(dt, player.followPoint(follow));
             if (intro && intro.k < 1) {
                 intro.k = Math.min(1, intro.k + dt / 3.2);
@@ -336,10 +369,9 @@ async function boot() {
             camera.lookAt(0, 4, 0);
         }
         player.worldPosition(focus);
-        if (player.mode !== 'drive') player.avatar.getWorldPosition(WIND.uPlayer.value);
-        else WIND.uPlayer.value.set(0, -100, 0);
+        player.avatar.getWorldPosition(WIND.uPlayer.value);
 
-        const skyState = sky.update(time.hours, entered ? focus : new THREE.Vector3(0, 0, 0), dt, t, camera.position);
+        const skyState = sky.update(time.hours, entered ? focus : V3_ZERO, time.fast ? dt * 4 : dt, t, camera.position);
         env.night = skyState.night;
         renderer.toneMappingExposure = skyState.exposure;
         water.update(t, camera.position, env.night, skyState.reflect);
@@ -350,13 +382,14 @@ async function boot() {
 
         const listener = entered ? focus : camera.position;
         const fireD = listener.distanceTo(props.anchors.campfire.center);
+        const isIndoor = !!cottage?.isInside;
         audio.update(dt, {
-            shore: THREE.MathUtils.clamp(1 - shoreDistance(listener.x, listener.z) / 35, 0, 1),
+            shore: isIndoor ? 0 : THREE.MathUtils.clamp(1 - shoreDistance(listener.x, listener.z) / 35, 0, 1),
             height: entered ? camera.position.y : 30,
             night: env.night,
             fire: entered ? THREE.MathUtils.clamp(1 - fireD / 16, 0, 1) : 0,
-            gust: env.gust,
-            drive: player.mode === 'drive' ? player.car : null,
+            gust: isIndoor ? 0.2 : env.gust,
+            muffled: isIndoor,
         });
         const minute = Math.floor(time.hours * 60);
         if (minute !== clockShown) { clockShown = minute; ui.setClock(time.hours); }
@@ -393,7 +426,7 @@ async function boot() {
             get state() {
                 return { quality, hours: time.hours, mode: player.mode, active: activities.active?.id ?? null, pos: { ...player.avatar.position }, calls: renderer.info.render.calls, tris: renderer.info.render.triangles };
             },
-            anchors: props.anchors, showcase, PLACES, camera, rig, player, activities,
+            anchors: props.anchors, showcase, PLACES, camera, rig, player, activities, treasure, cottage, beachBall, save, ui,
         };
     }
 

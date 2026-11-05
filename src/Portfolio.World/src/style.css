@@ -187,6 +187,23 @@ kbd { font: inherit; font-weight: 800; font-size: .85em; background: rgba(0, 0, 
 .info-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .info-actions .btn-primary { font-size: 15px; padding: 11px 18px; text-decoration: none; }
 .info-progress { margin-top: 14px; font-size: 13px; color: var(--dim); }
+.info-case-study { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+.info-section-title { font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 14px 0 6px; }
+.info-section-title:first-child { margin-top: 2px; }
+.info-role-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(232, 116, 59, .12); color: var(--accent); border-radius: 8px; padding: 5px 10px; font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+.info-role-badge .role-tag { font-weight: 900; opacity: 0.85; }
+.info-highlights-list { margin: 6px 0 12px; padding-left: 20px; color: #3d474e; font-size: 14px; display: grid; gap: 5px; }
+
+/* Trail Signpost Guide */
+.signpost-guide-list { display: grid; gap: 10px; margin: 12px 0 6px; }
+.signpost-guide-item { display: flex; align-items: flex-start; gap: 12px; background: rgba(0, 0, 0, .03); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.signpost-guide-icon { font-size: 24px; line-height: 1; padding-top: 2px; }
+.signpost-guide-content { flex: 1; min-width: 0; }
+.signpost-guide-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.signpost-guide-name { font-weight: 800; font-size: 15px; color: #1f2937; }
+.signpost-guide-dist { font-size: 12px; font-weight: 800; color: var(--accent); background: rgba(232, 116, 59, .12); padding: 2px 8px; border-radius: 999px; }
+.signpost-guide-desc { margin: 0 !important; font-size: 13.5px; color: #4b5563; line-height: 1.45; }
+
 .letter { width: min(480px, calc(100% - 24px)); background: #fbf3df; }
 .letter-body { overflow: auto; padding-bottom: 22px; font-size: 16px; line-height: 1.65; font-family: Georgia, "Iowan Old Style", serif; }
 .letter-body p { margin: 0 0 12px; }
@@ -196,9 +213,240 @@ kbd { font: inherit; font-weight: 800; font-size: .85em; background: rgba(0, 0, 
 .photo-bar { position: fixed; z-index: 15; left: 50%; transform: translateX(-50%); bottom: max(22px, env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center;
     flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100% - 24px); }
 .photo-hint { color: #fff; font-size: 13px; font-weight: 700; text-shadow: 0 1px 6px rgba(0, 0, 0, .5); }
-body.photo .hud-top, body.photo .prompt-wrap, body.photo .controls, body.photo .toasts, body.photo .joystick, body.photo .touch-actions, body.photo .card { display: none !important; }
+body.photo .hud-top, body.photo .prompt-wrap, body.photo .controls, body.photo .toasts, body.photo .joystick, body.photo .touch-actions, body.photo .card, body.photo .ball-hud { display: none !important; }
+
+/* Beach Ball Keep-Up HUD */
+.ball-hud { position: fixed; top: max(64px, calc(env(safe-area-inset-top) + 54px)); left: 18px; z-index: 11; pointer-events: none; }
+.ball-hud-card { background: var(--glass); border: 1px solid var(--glass-line); border-radius: 18px; padding: 12px 18px;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 16px 36px rgba(0, 0, 0, .3); color: #fff; min-width: 190px; }
+.ball-hud-header { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #4ae0c8; }
+.ball-hud-combo { font-size: 32px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -.02em; margin: 4px 0 6px; text-shadow: 0 2px 8px rgba(0,0,0,.4); color: #ffd13b; }
+.ball-hud-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; font-weight: 800; color: rgba(255, 255, 255, .8); }
+.ball-hud-best { color: #f6c344; font-variant-numeric: tabular-nums; }
+
+/* Island Clue Parchment */
+.parchment-clue {
+    background: #fdf6e2;
+    border-left: 3px solid #d4a359;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-family: Georgia, "Iowan Old Style", serif;
+    font-size: 16px;
+    line-height: 1.65;
+    font-style: italic;
+    color: #4a3821;
+    margin: 12px 0 18px;
+}
+
+/* Retro CRT Terminal & Mini-Games */
+.crt-terminal {
+    background: #08120a;
+    border: 3px solid #28442c;
+    border-radius: 12px;
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.9), 0 8px 24px rgba(0, 0, 0, 0.4);
+    padding: 14px;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #52e196;
+    margin: 10px 0 14px;
+    position: relative;
+    overflow: hidden;
+}
+.crt-terminal::after {
+    content: " ";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.12) 0px, rgba(0, 0, 0, 0.12) 1px, transparent 1px, transparent 2px);
+    opacity: 0.6;
+}
+.crt-screen {
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #28442c #08120a;
+}
+.crt-output {
+    word-break: break-word;
+}
+.crt-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+.crt-prompt {
+    font-weight: 800;
+    color: #52e196;
+}
+.crt-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #52e196;
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+}
+.crt-snake-board {
+    margin: 8px 0;
+    line-height: 1.15;
+    font-size: 12px;
+    color: #f6c344;
+}
+.crt-quick-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+.crt-pill {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 12px;
+    padding: 4px 10px;
+}
+
+/* Vinyl Turntable & Guestbook */
+.turntable-tracks {
+    display: grid;
+    gap: 8px;
+    margin: 12px 0 14px;
+}
+.track-btn {
+    text-align: left;
+    justify-content: flex-start;
+    padding: 9px 14px;
+    transition: background .15s, border-color .15s;
+}
+.track-btn.track-active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+.guestbook-reactions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    margin: 10px 0 16px;
+}
+.reaction-active {
+    background: #4a8459;
+    color: #fff;
+    border-color: #4a8459;
+}
 
 .noscript { position: fixed; inset: 0; display: grid; place-items: center; color: #fff; }
+
+/* 100% Island Completion Modal & Journal Mastery */
+.completion-modal {
+    width: min(540px, calc(100% - 28px));
+    background: radial-gradient(circle at 50% 0%, #fffdf8, #fdf8ee);
+    border: 2px solid #e2be6d;
+    box-shadow: 0 24px 60px rgba(45, 30, 10, .28), 0 0 0 1px rgba(255, 255, 255, .7) inset;
+    text-align: center;
+}
+.completion-kicker {
+    font-size: 11.5px;
+    font-weight: 900;
+    letter-spacing: .16em;
+    color: #b45309;
+    text-align: center;
+    width: 100%;
+}
+.completion-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+.completion-trophy {
+    font-size: 52px;
+    filter: drop-shadow(0 4px 12px rgba(226, 190, 109, .4));
+    animation: pop .6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.completion-hero h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #2b1f13;
+    letter-spacing: -.02em;
+}
+.completion-subtitle {
+    margin: 0;
+    font-size: 14.5px;
+    color: #785a3c;
+    font-weight: 700;
+}
+.completion-quote {
+    background: rgba(245, 235, 218, .75);
+    border: 1px solid rgba(220, 190, 140, .4);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-family: Georgia, "Iowan Old Style", serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #433324;
+    text-align: left;
+}
+.completion-quote p { margin: 0 0 6px; }
+.completion-author {
+    font-family: "Nunito", system-ui, sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    color: #92632b;
+    text-align: right;
+}
+.completion-pitch {
+    font-size: 14.5px;
+    color: #3b2f23;
+    line-height: 1.5;
+    margin: 12px 0 18px;
+    font-weight: 600;
+}
+.completion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 6px;
+}
+.completion-connect {
+    background: linear-gradient(135deg, #e8743b, #d85c20);
+    box-shadow: 0 4px 16px rgba(232, 116, 59, .35);
+    padding: 10px 20px;
+    font-size: 15px;
+}
+.journal-master-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: linear-gradient(135deg, #fdf6e2, #fbf0cf);
+    border: 1px solid #dfc079;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #78480a;
+}
+.journal-master-btn {
+    border: 0;
+    background: #b45309;
+    color: #fff;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.journal-master-btn:hover { background: #92400e; }
+
 
 @media (max-width: 760px) {
     .hud-btn .label { display: none; }
@@ -211,6 +459,8 @@ body.photo .hud-top, body.photo .prompt-wrap, body.photo .controls, body.photo .
     .controls { bottom: max(160px, calc(env(safe-area-inset-bottom) + 160px)); }
     .title { background: linear-gradient(0deg, rgba(8, 14, 26, .75), transparent 75%); }
     .title-sub { font-size: 15px; }
+    .ball-hud { top: max(112px, calc(env(safe-area-inset-top) + 104px)); left: 50%; right: auto; transform: translateX(-50%); }
+    .ball-hud-combo { font-size: 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }

@@ -133,6 +133,28 @@ public class DataSeeder : IDataSeeder
         foreach (var p in await _db.Projects.Where(p => p.Slug.Trim() == "").ToListAsync(ct))
             p.Slug = SlugGenerator.Generate(p.Title);
 
+        // Keep core project descriptions and case studies synchronized with the latest SEO/AI/human copy
+        // when existing database rows still have empty Challenge or outdated summaries.
+        var coreProjects = SeedContent.Projects().ToDictionary(p => p.Slug, StringComparer.OrdinalIgnoreCase);
+        foreach (var existing in await _db.Projects.ToListAsync(ct))
+        {
+            if (coreProjects.TryGetValue(existing.Slug, out var updated))
+            {
+                if (string.IsNullOrWhiteSpace(existing.Challenge))
+                {
+                    existing.Challenge = updated.Challenge;
+                    existing.Solution = updated.Solution;
+                    existing.Outcome = updated.Outcome;
+                }
+                existing.Title = updated.Title;
+                existing.Summary = updated.Summary;
+                existing.Description = updated.Description;
+                existing.Highlights = updated.Highlights;
+                existing.TechStack = updated.TechStack;
+                if (!string.IsNullOrWhiteSpace(updated.Metric)) existing.Metric = updated.Metric;
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
     }
 }

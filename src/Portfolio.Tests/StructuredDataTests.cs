@@ -71,6 +71,30 @@ public class StructuredDataTests
     }
 
     [Fact]
+    public void ProjectPage_IncludesTechArticleSchema()
+    {
+        var project = new Project
+        {
+            Title = "AI Diagram Generation for PowerPoint",
+            Slug = "ai-diagram-generation-powerpoint",
+            Summary = "Enterprise PowerPoint AI add-in generating editable process diagrams.",
+            Category = "AI / LLM",
+            TechStack = ".NET 9, C#, Claude API",
+            ImageUrl = "https://img/diagram.png"
+        };
+
+        var json = PublicSite.StructuredData(Bio(), Origin, Origin + "/project/" + project.Slug, "https://img/diagram.png", null, false, project);
+
+        var article = Node(json, "TechArticle");
+        Assert.Equal("AI Diagram Generation for PowerPoint", article.GetProperty("headline").GetString());
+        Assert.Equal("Enterprise PowerPoint AI add-in generating editable process diagrams.", article.GetProperty("description").GetString());
+        Assert.Equal(Origin + "/#person", article.GetProperty("author").GetProperty("@id").GetString());
+        Assert.Equal(".NET 9, C#, Claude API", article.GetProperty("keywords").GetString());
+        Assert.Equal("AI / LLM", article.GetProperty("about").GetString());
+        Assert.Equal("https://img/diagram.png", article.GetProperty("image").GetString());
+    }
+
+    [Fact]
     public void AdminText_CannotCloseTheScriptElement()
     {
         var bio = Bio();
@@ -150,11 +174,13 @@ public class StructuredDataTests
     [Fact]
     public void Description_AddsWhereTheOwnerIsBased_WhenItFits()
     {
-        Assert.Equal(Bio().Tagline + " Based in Lahore, Pakistan.", PublicSite.Describe(Bio()));
+        Assert.Equal("Shoaib Riaz — " + Bio().Tagline + " Based in Lahore, Pakistan.", PublicSite.Describe(Bio()));
 
         var longBio = Bio();
         longBio.Tagline = new string('x', 150);
-        Assert.Equal(longBio.Tagline, PublicSite.Describe(longBio));
+        var longDesc = PublicSite.Describe(longBio);
+        Assert.StartsWith("Shoaib Riaz — ", longDesc);
+        Assert.True(longDesc.Length <= PublicSite.DescriptionMax);
     }
 
     [Fact]
@@ -162,15 +188,15 @@ public class StructuredDataTests
     {
         var bio = Bio();
         bio.Tagline = "I build .NET software";
-        Assert.StartsWith("I build .NET software. ", PublicSite.Describe(bio));
+        Assert.StartsWith("Shoaib Riaz — I build .NET software. ", PublicSite.Describe(bio));
         bio.Tagline = "Let's build!";
-        Assert.StartsWith("Let's build! Based", PublicSite.Describe(bio));
+        Assert.StartsWith("Shoaib Riaz — Let's build! Based", PublicSite.Describe(bio));
         bio.Tagline = "Hiring?";
-        Assert.StartsWith("Hiring? Based", PublicSite.Describe(bio));
+        Assert.StartsWith("Shoaib Riaz — Hiring? Based", PublicSite.Describe(bio));
 
         bio.Tagline = "";
         var none = PublicSite.Describe(bio);
-        Assert.False(char.IsWhiteSpace(none[0]));
+        Assert.StartsWith("Shoaib Riaz — Portfolio.", none);
         Assert.Contains("Lahore, Pakistan", none);
     }
 
@@ -178,8 +204,9 @@ public class StructuredDataTests
     public void Description_UsesTheWholeLimit()
     {
         var bio = Bio();
-        var suffix = PublicSite.Describe(new Bio { Tagline = "x.", Location = bio.Location })[2..];   // " Based in …"
-        bio.Tagline = new string('x', PublicSite.DescriptionMax - suffix.Length - 1) + ".";
+        var prefix = "Shoaib Riaz — ";
+        var suffix = " Based in Lahore, Pakistan.";
+        bio.Tagline = new string('x', PublicSite.DescriptionMax - prefix.Length - suffix.Length - 1) + ".";
         Assert.Equal(PublicSite.DescriptionMax, PublicSite.Describe(bio).Length);
     }
 }

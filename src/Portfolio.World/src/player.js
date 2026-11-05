@@ -1,11 +1,19 @@
 // Moving around: keyboard, touch joystick, drag-to-look and tap-to-walk input; the third-person orbit camera;
-// walking and running on the terrain (wading into shallows, blocked by deep water); and driving the car.
+// walking and running on the terrain (wading into shallows, blocked by deep water).
 import * as THREE from 'three';
 import { groundAt, heightAt, surfaceKind } from './terrain.js';
 import { animateCharacter, AVATAR_SCALE, createCharacter, setPose, SIT_DROP } from './character.js';
+import { ROOM } from './cottage.js';
 
 const WALK = 2.3, RUN = 5.6, RADIUS = 0.34, WADE_LIMIT = -0.8;
 const ACCEL = 9, DECEL = 12, TURN_WALK = 9, TURN_RUN = 5.5;      // m/s², rad/s
+
+export const PlayerState = {
+    IDLE: 'idle',
+    WALK: 'walk',
+    RUN: 'run',
+    BUSY: 'busy',
+};
 
 // ---------------- Input ----------------
 export function createInput(canvas, joystickEl) {
@@ -124,6 +132,11 @@ export function createRig(camera, input, { reducedMotion }) {
         if (rig.firstPerson) {
             const fp = rig.firstPerson;
             fp.yaw -= look.dx * 0.0016 * (fp.fov / 50);
+            if (fp.baseFacing !== undefined) {
+                const maxArc = fp.maxArc ?? 1.22;
+                const diff = Math.atan2(Math.sin(fp.yaw - fp.baseFacing), Math.cos(fp.yaw - fp.baseFacing));
+                fp.yaw = fp.baseFacing + THREE.MathUtils.clamp(diff, -maxArc, maxArc);
+            }
             fp.pitch = THREE.MathUtils.clamp(fp.pitch - look.dy * 0.0016 * (fp.fov / 50), -0.5, fp.maxPitch ?? 0.9);
             fp.fov = THREE.MathUtils.clamp(fp.fov + zoom * 0.8, 6, 45);
             camera.position.copy(fp.eye);
@@ -160,6 +173,15 @@ export function createRig(camera, input, { reducedMotion }) {
             tmp.lerpVectors(rig.focus, camera.position, f);
             const need = Math.max(groundAt(tmp.x, tmp.z), 0) + 0.45;
             if (tmp.y < need) camera.position.y += (need - tmp.y) / f;
+        }
+        // When inside the cottage interior room, clamp camera within room walls:
+        if (Math.hypot(rig.focus.x - ROOM.x, rig.focus.z - ROOM.z) < 6.0) {
+            const padX = 0.35, padZ = 0.35;
+            const halfInnerW = ROOM.w / 2 - 0.7;
+            const halfInnerD = ROOM.d / 2 - 0.2;
+            camera.position.x = THREE.MathUtils.clamp(camera.position.x, ROOM.x - halfInnerW + padX, ROOM.x + halfInnerW - padX);
+            camera.position.z = THREE.MathUtils.clamp(camera.position.z, ROOM.z - halfInnerD + padZ, ROOM.z + halfInnerD - padZ);
+            camera.position.y = THREE.MathUtils.clamp(camera.position.y, ROOM.y + 0.35, ROOM.y + ROOM.h - 0.25);
         }
         camera.lookAt(rig.focus);
     };
@@ -261,29 +283,19 @@ function walkable(x, z, fromY) {
     return g - fromY < 0.7;
 }
 
-export function createPlayer(scene, { colliders, rig, input, carObj, onStep }) {
+export function createPlayer(scene, { colliders, rig, input, onStep }) {
     const avatar = createCharacter();
     avatar.scale.setScalar(AVATAR_SCALE);
     scene.add(avatar);
     const player = {
         avatar,
         position: avatar.position,
-        heading: 0, speed: 0, mode: 'walk',      // 'walk' | 'busy' (an activity owns the avatar) | 'drive'
+        heading: 0, speed: 0,
         tapTarget: null, stuck: 0, wading: false,
-        car: { speed: 0, heading: carObj.rotation.y, steer: 0 },
     };
     const vel = new THREE.Vector3();
 
-    player.place = (x, z, heading = player.heading) => {
-        avatar.position.set(x, groundAt(x, z), z);
-        player.heading = heading;
-        avatar.rotation.set(0, heading, 0);
-        player.speed = 0;
-        player.tapTarget = null;
-    };
-    player.walkTo = (x, z, onArrive) => { player.tapTarget = { x, z, onArrive }; player.stuck = 0; };
-
-    function updateWalk(dt, t) {
+    function executeLocomotion(dt, t, { maxSpeed, turnRate }) {
         const a = input.axes();
         let dirX = 0, dirZ = 0, want = 0;
         if (a.active) {
@@ -294,7 +306,7 @@ export function createPlayer(scene, { colliders, rig, input, carObj, onStep }) {
             const len = Math.hypot(dirX, dirZ);
             dirX /= len; dirZ /= len;
             const push = Math.min(1, Math.hypot(a.x, a.y) * 1.15);
-            want = a.run ? RUN * push : WALK * Math.min(1, push * 1.3);
+            want = maxSpeed * (maxSpeed === RUN ? push : Math.min(1, push * 1.3));
         } else if (player.tapTarget) {
             const dx = player.tapTarget.x - avatar.position.x, dz = player.tapTarget.z - avatar.position.z, d = Math.hypot(dx, dz);
             if (d < 0.4 || player.stuck > 1.2) {
@@ -303,121 +315,207 @@ export function createPlayer(scene, { colliders, rig, input, carObj, onStep }) {
                 if (d < 1.5) done.onArrive?.();
             } else {
                 dirX = dx / d; dirZ = dz / d;
-                want = d > 18 ? RUN : WALK;
-                want = Math.min(want, 0.6 + d * 1.6);          // ease in to a stop on arrival
+                want = d > 18 ? RUN : maxSpeed;
+                want = Math.min(want, 0.6 + d * 1.6);
             }
         }
-        // Turn toward the wanted direction at a limited rate (slower when running) and slow down for sharp
-        // turns instead of pivoting at full speed.
+
         if (want > 0) {
             const target = Math.atan2(dirX, dirZ);
             const gap = Math.atan2(Math.sin(target - player.heading), Math.cos(target - player.heading));
-            const rate = THREE.MathUtils.lerp(TURN_WALK, TURN_RUN, THREE.MathUtils.clamp((player.speed - WALK) / (RUN - WALK), 0, 1));
-            player.heading += THREE.MathUtils.clamp(gap, -rate * dt, rate * dt);
+            player.heading += THREE.MathUtils.clamp(gap, -turnRate * dt, turnRate * dt);
             want *= THREE.MathUtils.clamp(1.25 - Math.abs(gap) / 1.6, 0.25, 1);
         }
-        // Wading and climbing slow you down.
+
         const p = avatar.position;
         const fwdX = Math.sin(player.heading), fwdZ = Math.cos(player.heading);
         const climb = (groundAt(p.x + fwdX * 0.6, p.z + fwdZ * 0.6) - groundAt(p.x, p.z)) / 0.6;
         want *= (player.wading ? 0.55 : 1) * THREE.MathUtils.clamp(1 - Math.max(0, climb) * 0.45, 0.6, 1);
         const rateV = want > player.speed ? ACCEL : DECEL;
         player.speed += THREE.MathUtils.clamp(want - player.speed, -rateV * dt, rateV * dt);
-        // Travel along the facing direction: the body leads, so feet and motion always agree.
+
         vel.set(fwdX, 0, fwdZ).multiplyScalar(player.speed * dt);
 
         const before = p.clone();
         const next = new THREE.Vector3(p.x + vel.x, 0, p.z + vel.z);
         collide(next, colliders, RADIUS);
         if (walkable(next.x, next.z, p.y)) { p.x = next.x; p.z = next.z; }
-        else if (walkable(next.x, p.z, p.y)) p.x = next.x;          // slide along the obstacle
+        else if (walkable(next.x, p.z, p.y)) p.x = next.x;
         else if (walkable(p.x, next.z, p.y)) p.z = next.z;
         const moved = Math.hypot(p.x - before.x, p.z - before.z);
         player.stuck = want > 0 && moved < want * dt * 0.25 ? player.stuck + dt : 0;
-        if (moved < player.speed * dt * 0.5) player.speed = Math.max(moved / dt, player.speed * 0.85);   // blocked: don't keep "running" into it
-        // Feet stay on the ground: follow it exactly going down and over bumps; only step-ups onto decks are
-        // smoothed into a quick lift.
+        if (moved < player.speed * dt * 0.5) player.speed = Math.max(moved / dt, player.speed * 0.85);
+
         const g = groundAt(p.x, p.z);
         p.y = g > p.y + 0.06 ? p.y + Math.min(g - p.y, dt * 6) : g;
         player.wading = heightAt(p.x, p.z) < -0.1 && Math.abs(g - heightAt(p.x, p.z)) < 0.01;
         avatar.rotation.y = player.heading;
-        animateCharacter(avatar, dt, t, { speed: moved / Math.max(dt, 1e-4), heading: player.heading, onStep: () => onStep?.(surfaceKind(p.x, p.z), player.speed) });
+        animateCharacter(avatar, dt, t, {
+            speed: moved / Math.max(dt, 1e-4),
+            heading: player.heading,
+            onStep: () => onStep?.(surfaceKind(p.x, p.z), player.speed),
+        });
+        return { moved, want };
     }
 
-    // ---- Driving ----
-    const wheelOffsets = [[-1, 1.45], [1, 1.45], [-1, -1.45], [1, -1.45]];
-    function updateDrive(dt, t) {
-        const a = input.axes(), c = player.car;
-        const brake = input.held(' ');
-        if (brake) c.speed -= Math.sign(c.speed) * Math.min(Math.abs(c.speed), 26 * dt);
-        else if (a.y) c.speed += a.y * 11 * dt;
-        else c.speed -= Math.sign(c.speed) * Math.min(Math.abs(c.speed), 5 * dt);
-        c.speed = THREE.MathUtils.clamp(c.speed, -5, 15);
-        c.steer += (a.x - c.steer) * Math.min(1, dt * 6);
-        c.heading -= c.steer * 1.9 * THREE.MathUtils.clamp(Math.abs(c.speed) / 6, 0, 1) * Math.sign(c.speed || 1) * dt;
-        const p = carObj.position;
-        const next = new THREE.Vector3(p.x + Math.sin(c.heading) * c.speed * dt, 0, p.z + Math.cos(c.heading) * c.speed * dt);
-        const before = next.clone();
-        collide(next, colliders, 2.0);
-        if (next.distanceToSquared(before) > 1e-6) c.speed *= 0.6;
-        // The car stays out of the sea: it noses into the shallows and stops.
-        if (heightAt(next.x, next.z) > -0.3) { p.x = next.x; p.z = next.z; } else c.speed *= -0.3;
-        // Sit on the terrain: average the wheel heights, pitch and roll from their differences.
-        const ch = Math.cos(c.heading), sh = Math.sin(c.heading);
-        const hs = wheelOffsets.map(([x, z]) => Math.max(groundAt(p.x + x * ch + z * sh, p.z - x * sh + z * ch), -0.3));
-        const front = (hs[0] + hs[1]) / 2, back = (hs[2] + hs[3]) / 2, left = (hs[0] + hs[2]) / 2, right = (hs[1] + hs[3]) / 2;
-        p.y += ((front + back) / 2 - p.y) * Math.min(1, dt * 12);
-        carObj.rotation.set(0, 0, 0);
-        carObj.rotateY(c.heading);
-        carObj.rotateX(-Math.atan2(front - back, 2.9));
-        carObj.rotateZ(Math.atan2(right - left, 2.0));
-        for (const w of carObj.userData.wheels) for (const part of w.children) part.rotation.y -= c.speed * dt * 2;
-        const chassis = carObj.userData.chassis;
-        chassis.position.y = Math.sin(t * 11) * 0.012 * Math.min(1, Math.abs(c.speed) / 5);
-        chassis.rotation.x += (-a.y * 0.025 - chassis.rotation.x) * Math.min(1, dt * 6);
-        if (Math.abs(c.speed) > 2 && !input.recentlyLooked) rig.behind(c.heading, Math.min(1, dt * 1.8));
-        animateCharacter(avatar, dt, t);
-    }
+    // ---- Character Controller State Machine ----
+    const playerStates = {
+        [PlayerState.IDLE]: {
+            enter() {
+                player.speed = 0;
+                setPose(avatar, 'idle');
+            },
+            update(dt, t) {
+                const a = input.axes();
+                if (a.active) {
+                    machine.transition(a.run ? PlayerState.RUN : PlayerState.WALK);
+                    return;
+                }
+                if (player.tapTarget) {
+                    machine.transition(PlayerState.WALK);
+                    return;
+                }
+                const p = avatar.position;
+                const g = groundAt(p.x, p.z);
+                p.y = g > p.y + 0.06 ? p.y + Math.min(g - p.y, dt * 6) : g;
+                player.wading = heightAt(p.x, p.z) < -0.1 && Math.abs(g - heightAt(p.x, p.z)) < 0.01;
+                avatar.rotation.y = player.heading;
+                animateCharacter(avatar, dt, t, { speed: 0, heading: player.heading });
+            },
+            exit() {},
+        },
 
-    player.enterCar = () => {
-        player.mode = 'drive';
-        player.car.heading = carObj.rotation.y;
-        player.car.speed = 0;
-        carObj.userData.seat.add(avatar);
-        avatar.scale.setScalar(1);
-        avatar.position.set(0, -SIT_DROP, -0.05);
-        avatar.rotation.set(0, 0, 0);
-        setPose(avatar, 'drive');
-        rig.setView({ distance: 11, pitch: 0.3 });
-        rig.behind(player.car.heading);
+        [PlayerState.WALK]: {
+            enter() {
+                setPose(avatar, 'idle');
+            },
+            update(dt, t) {
+                const a = input.axes();
+                if (a.active && a.run) {
+                    machine.transition(PlayerState.RUN);
+                    return;
+                }
+                const { moved } = executeLocomotion(dt, t, { maxSpeed: WALK, turnRate: TURN_WALK });
+                if (machine.current === PlayerState.WALK && !a.active && !player.tapTarget && player.speed < 0.08) {
+                    machine.transition(PlayerState.IDLE);
+                }
+            },
+            exit() {},
+        },
+
+        [PlayerState.RUN]: {
+            enter() {
+                setPose(avatar, 'idle');
+            },
+            update(dt, t) {
+                const a = input.axes();
+                if (a.active && !a.run) {
+                    machine.transition(PlayerState.WALK);
+                    return;
+                }
+                const { moved } = executeLocomotion(dt, t, { maxSpeed: RUN, turnRate: TURN_RUN });
+                if (machine.current === PlayerState.RUN && !a.active && !player.tapTarget && player.speed < 0.08) {
+                    machine.transition(PlayerState.IDLE);
+                }
+            },
+            exit() {},
+        },
+
+        [PlayerState.BUSY]: {
+            enter(pose = 'idle') {
+                player.speed = 0;
+                player.tapTarget = null;
+                setPose(avatar, pose);
+            },
+            update(dt, t) {
+                animateCharacter(avatar, dt, t);
+            },
+            exit() {
+                setPose(avatar, 'idle');
+            },
+        },
     };
-    player.exitCar = () => {
-        if (Math.abs(player.car.speed) > 3) return false;
-        const h = player.car.heading, p = carObj.position;
-        scene.add(avatar);
-        avatar.scale.setScalar(AVATAR_SCALE);
-        setPose(avatar, 'idle');
-        player.mode = 'walk';
-        // Step out on the driver's side, or the other side if that's blocked.
-        for (const side of [1, -1]) {
-            const x = p.x + Math.cos(h) * 2.2 * side, z = p.z - Math.sin(h) * 2.2 * side;
-            if (walkable(x, z, groundAt(x, z))) { player.place(x, z, h); break; }
+
+    function createPlayerStateMachine(initialState, stateMap) {
+        let current = initialState;
+        stateMap[current]?.enter?.();
+
+        return {
+            get current() { return current; },
+            transition(next, ...args) {
+                if (current === next) return;
+                stateMap[current]?.exit?.();
+                current = next;
+                stateMap[current]?.enter?.(...args);
+            },
+            update(dt, t) {
+                stateMap[current]?.update?.(dt, t);
+            },
+        };
+    }
+
+    const machine = createPlayerStateMachine(PlayerState.IDLE, playerStates);
+    player.machine = machine;
+
+    player.place = (x, z, heading = player.heading) => {
+        if (machine.current !== PlayerState.BUSY) {
+            machine.transition(PlayerState.IDLE);
         }
-        rig.setView({ distance: 9, pitch: 0.42 });
-        return true;
+        avatar.position.set(x, groundAt(x, z), z);
+        player.heading = heading;
+        avatar.rotation.set(0, heading, 0);
+        player.speed = 0;
+        player.tapTarget = null;
+    };
+
+    player.walkTo = (x, z, onArrive) => {
+        player.tapTarget = { x, z, onArrive };
+        player.stuck = 0;
+        if (machine.current === PlayerState.IDLE) {
+            machine.transition(PlayerState.WALK);
+        }
+    };
+
+    player.setBusy = (busy, pose = 'idle') => {
+        if (busy) {
+            if (machine.current === PlayerState.BUSY) {
+                setPose(avatar, pose);
+            } else {
+                machine.transition(PlayerState.BUSY, pose);
+            }
+        } else {
+            machine.transition(PlayerState.IDLE);
+        }
     };
 
     player.update = (dt, t) => {
-        if (player.mode === 'walk') updateWalk(dt, t);
-        else if (player.mode === 'drive') updateDrive(dt, t);
-        else animateCharacter(avatar, dt, t);
+        machine.update(dt, t);
     };
+
     player.followPoint = (out = new THREE.Vector3()) => {
-        if (player.mode === 'drive') return out.copy(carObj.position).add(new THREE.Vector3(0, 1.6, 0));
-        return out.copy(avatar.position).add(new THREE.Vector3(0, 1.45, 0));
+        avatar.getWorldPosition(out);
+        out.y += 1.45;
+        return out;
     };
-    /** World position the camera, sounds and shadows centre on. */
-    player.worldPosition = (out = new THREE.Vector3()) => (player.mode === 'drive' ? out.copy(carObj.position) : avatar.getWorldPosition(out));
-    player.setBusy = busy => { player.mode = busy ? 'busy' : 'walk'; player.speed = 0; player.tapTarget = null; if (!busy) setPose(avatar, 'idle'); };
+
+    player.worldPosition = (out = new THREE.Vector3()) => {
+        return avatar.getWorldPosition(out);
+    };
+
+    Object.defineProperty(player, 'mode', {
+        get() {
+            const s = machine.current;
+            if (s === PlayerState.BUSY) return 'busy';
+            return 'walk';
+        },
+        set(m) {
+            if (m === 'busy') machine.transition(PlayerState.BUSY);
+            else machine.transition(PlayerState.IDLE);
+        },
+    });
+
+    Object.defineProperty(player, 'state', {
+        get() { return machine.current; },
+    });
     return player;
 }

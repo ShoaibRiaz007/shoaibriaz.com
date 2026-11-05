@@ -57,7 +57,6 @@ const hammockCoast = coastPoint(66);
 
 export const PLACES = {
     cottage: { x: -8, z: 6, facing: 0.15 },                    // facing: radians about y, 0 = door toward +z
-    car: { x: 8, z: 16, heading: 0.9 },
     windmill: { x: 38, z: -14 },
     hill: { x: HILL.x, z: HILL.z },
     lighthouse: { x: CAPE.x + 2, z: CAPE.z - 1 },
@@ -99,7 +98,6 @@ const FLAT = [
     { ...P.cottage, r: 10, blend: 8 },
     { ...P.windmill, r: 6, blend: 6 },
     { ...P.campfire, r: 5, blend: 4 },
-    { ...P.car, r: 4, blend: 4 },
     { ...P.lighthouse, r: 6, blend: 5 },
     { ...P.gallery, r: 11, blend: 6 },
 ].map(f => ({ ...f, h: baseHeight(f.x, f.z) }));

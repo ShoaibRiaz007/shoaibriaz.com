@@ -98,12 +98,30 @@ public static class PublicSite
     /// (people search for "C# developer Lahore").</summary>
     public static string Describe(Bio bio)
     {
+        var name = (bio.FullName ?? "").Trim();
         var tagline = (bio.Tagline ?? "").Trim();
         var place = Place(bio.Location);
-        if (place is null) return Truncate(tagline, DescriptionMax);
-        var sentence = tagline.Length == 0 || ".!?".Contains(tagline[^1]) ? tagline : tagline + ".";
-        var full = $"{sentence} Based in {place}.".TrimStart();
-        return full.Length <= DescriptionMax ? full : Truncate(tagline, DescriptionMax);
+
+        var lead = name.Length > 0 ? $"{name} — " : "";
+        var locationNote = place is null ? "" : $" Based in {place}.";
+
+        if (tagline.Length == 0)
+        {
+            var fallback = $"{lead}Portfolio.{locationNote}".Trim();
+            return Truncate(fallback, DescriptionMax);
+        }
+
+        var sentence = ".!?".Contains(tagline[^1]) ? tagline : tagline + ".";
+        var full = $"{lead}{sentence}{locationNote}".TrimStart();
+        if (full.Length <= DescriptionMax) return full;
+
+        if (locationNote.Length > 0 && DescriptionMax - lead.Length - locationNote.Length >= 40)
+        {
+            var allowed = DescriptionMax - lead.Length - locationNote.Length;
+            return $"{lead}{Truncate(sentence, allowed)}{locationNote}";
+        }
+
+        return Truncate($"{lead}{sentence}".TrimStart(), DescriptionMax);
     }
 
     /// <summary>A free-text location read as (locality, region, country). The last part counts as the country only
@@ -177,18 +195,21 @@ public static class PublicSite
     /// about that Person. The career details (job title, employer, skills, schools) appear only on pages that load
     /// them, so no page states a different job title for the same Person. The default encoder escapes &lt;, &gt; and
     /// &amp;, so admin text can't close the script element.</summary>
-    public static string StructuredData(Bio bio, string origin, string canonical, string? image, PersonFacts? facts, bool profilePage)
+    public static string StructuredData(Bio bio, string origin, string canonical, string? image, PersonFacts? facts, bool profilePage, Domain.Entities.Project? project = null)
     {
         var personId = origin + "/#person";
         var (locality, region, country) = ParseLocation(bio.Location);
+        var role = facts?.Role ?? HeadlineTitle(bio.Headline);
+        var disambiguation = DisambiguatingDescription(role, facts?.Employer, bio.Location);
         var person = Compact(new()
         {
             ["@type"] = "Person",
             ["@id"] = personId,
             ["name"] = bio.FullName,
             ["url"] = origin,
-            ["jobTitle"] = facts is null ? null : facts.Role ?? HeadlineTitle(bio.Headline),
+            ["jobTitle"] = facts is null ? null : role,
             ["description"] = string.IsNullOrWhiteSpace(bio.Tagline) ? null : bio.Tagline.Trim(),
+            ["disambiguatingDescription"] = disambiguation,
             ["image"] = image,
             ["worksFor"] = facts?.Employer is { } employer ? new Dictionary<string, object?> { ["@type"] = "Organization", ["name"] = employer } : null,
             ["alumniOf"] = facts is { Schools.Count: > 0 }
@@ -219,7 +240,44 @@ public static class PublicSite
                 ["@type"] = "ProfilePage", ["url"] = canonical,
                 ["mainEntity"] = new Dictionary<string, string> { ["@id"] = personId },
             });
+
+        if (project is not null)
+        {
+            var keywords = Csv(project.TechStack);
+            graph.Add(Compact(new()
+            {
+                ["@type"] = "TechArticle",
+                ["@id"] = canonical + "/#article",
+                ["url"] = canonical,
+                ["headline"] = project.Title,
+                ["description"] = string.IsNullOrWhiteSpace(project.Summary) ? project.Description : project.Summary,
+                ["author"] = new Dictionary<string, string> { ["@id"] = personId },
+                ["publisher"] = new Dictionary<string, string> { ["@id"] = origin + "/#website" },
+                ["inLanguage"] = "en",
+                ["image"] = image,
+                ["keywords"] = keywords.Length > 0 ? string.Join(", ", keywords) : null,
+                ["about"] = string.IsNullOrWhiteSpace(project.Category) ? null : project.Category,
+            }));
+        }
+
         return JsonSerializer.Serialize(new Dictionary<string, object> { ["@context"] = "https://schema.org", ["@graph"] = graph });
+    }
+
+    /// <summary>Short summary used in schema.org to disambiguate the owner from other people sharing the same name
+    /// (e.g. government officials or researchers).</summary>
+    public static string? DisambiguatingDescription(string? role, string? employer, string? location)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            parts.Add(string.IsNullOrWhiteSpace(employer) ? role.Trim() : $"{role.Trim()} at {employer.Trim()}");
+        }
+        var place = Place(location);
+        if (!string.IsNullOrWhiteSpace(place))
+        {
+            parts.Add($"based in {place}");
+        }
+        return parts.Count > 0 ? string.Join(", ", parts) : null;
     }
 
     private static Dictionary<string, object?> Compact(Dictionary<string, object?> values)

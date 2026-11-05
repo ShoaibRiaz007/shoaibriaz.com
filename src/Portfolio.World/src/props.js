@@ -3,7 +3,7 @@
 // per material (bakeStatic) so the whole set costs a few dozen draw calls. Each builder also registers what
 // the rest of the world needs: colliders, walkable decks, clear zones for vegetation, and activity anchors.
 import * as THREE from 'three';
-import { bakeStatic, box, car as buildCar, glow, mat, stripeTexture, textTexture } from './builders.js';
+import { bakeStatic, box, glow, mat, signboardTexture, stripeTexture, textTexture } from './builders.js';
 import { addSurface, coastPoint, heightAt, PATHS, PLACES } from './terrain.js';
 import { rng } from './noise.js';
 
@@ -146,26 +146,66 @@ export function buildProps(scene, { colliders, clear }) {
     {
         const { x, z } = PLACES.signpost;
         const g = new THREE.Group();
-        g.add(put(box(0.22, 3.2, 0.22, WOOD_DARK), 0, 1.6, 0));
-        const dest = [['Pier', PLACES.pier], ['Campfire', PLACES.campfire], ['Windmill', PLACES.windmill], ['Lighthouse', PLACES.lighthouse], ['Lookout', PLACES.hill]];
-        dest.forEach(([label, d], i) => {
-            const yaw = Math.atan2(d.x - x, d.z - z) - Math.PI / 2;   // board's +x points at the destination
-            const tex = textTexture([label], { width: 256, height: 64, bg: '#7a5236', fg: '#fbefd8', accent: '#7a5236', title: true });
+        g.add(put(box(0.24, 3.4, 0.24, WOOD_DARK), 0, 1.7, 0));
+        g.add(put(new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.2, 4), mat(WOOD_DARK)), 0, 3.5, 0, 0, Math.PI / 4, 0));
+
+        // Hanging lantern arm extending over the path to illuminate the signpost
+        g.add(put(box(0.06, 0.06, 0.65, 0x2a2f36), 0, 3.38, 0.32));
+        g.add(put(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.18), lanternMat), 0, 3.16, 0.54));
+        g.add(put(new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.12, 4), mat(0x2a2f36)), 0, 3.34, 0.54, 0, Math.PI / 4, 0));
+        addGlow(g, 0, 3.16, 0.54, 0xffd28a, 2.8);
+
+        const dest = [
+            { label: 'Pier & Boat', icon: '⚓', target: PLACES.pier, color: '#38bdf8' },
+            { label: 'Campfire', icon: '🔥', target: PLACES.campfire, color: '#fb923c' },
+            { label: 'Project Gallery', icon: '🎨', target: PLACES.gallery, color: '#4ade80' },
+            { label: 'The Windmill', icon: '🌾', target: PLACES.windmill, color: '#facc15' },
+            { label: 'Lookout Trail', icon: '🧭', target: PLACES.hill, color: '#c084fc' },
+            { label: 'The Lighthouse', icon: '🗼', target: PLACES.lighthouse, color: '#818cf8' },
+        ];
+
+        dest.forEach((d, i) => {
+            const yaw = Math.atan2(d.target.x - x, d.target.z - z) - Math.PI / 2; // board's +x points at the destination
+            const texRight = signboardTexture({ label: d.label, icon: d.icon, arrow: 'right', fg: '#261609', accent: d.color });
+            const texLeft = signboardTexture({ label: d.label, icon: d.icon, arrow: 'left', fg: '#261609', accent: d.color });
+
             const board = new THREE.Group();
-            board.add(put(box(1.7, 0.36, 0.08, 0x7a5236), 0.85, 0, 0));
-            const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.255, 0.255, 0.08, 3), mat(0x7a5236));
-            board.add(put(tip, 1.78, 0, 0, Math.PI / 2, 0, -Math.PI / 2));
-            for (const side of [1, -1]) {
-                const face = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.34), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }));
-                put(face, 0.85, 0, side * 0.045, 0, side > 0 ? 0 : Math.PI, 0);
-                if (side < 0) face.scale.x = -1;    // keep text reading left-to-right from behind
-                board.add(face);
-            }
-            put(board, 0, 2.85 - i * 0.42, 0, 0, yaw, 0);
+            board.add(put(box(1.7, 0.32, 0.08, 0x633e24), 0.85, 0, 0));
+            // Pointed arrow tip on the +x end
+            const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.08, 3), mat(0x633e24));
+            board.add(put(tip, 1.76, 0, 0, Math.PI / 2, 0, -Math.PI / 2));
+
+            // Front face (looking towards -z, arrow tip to the right)
+            const faceFront = new THREE.Mesh(
+                new THREE.PlaneGeometry(1.6, 0.30),
+                new THREE.MeshStandardMaterial({ map: texRight, roughness: 0.85, emissive: 0x443322, emissiveMap: texRight, emissiveIntensity: 0.25 })
+            );
+            put(faceFront, 0.85, 0, 0.045);
+            board.add(faceFront);
+
+            // Back face (looking towards +z, arrow tip to the left from viewer perspective)
+            const faceBack = new THREE.Mesh(
+                new THREE.PlaneGeometry(1.6, 0.30),
+                new THREE.MeshStandardMaterial({ map: texLeft, roughness: 0.85, emissive: 0x443322, emissiveMap: texLeft, emissiveIntensity: 0.25 })
+            );
+            put(faceBack, 0.85, 0, -0.045, 0, Math.PI, 0);
+            board.add(faceBack);
+
+            put(board, 0, 2.96 - i * 0.32, 0, 0, yaw, 0);
             g.add(board);
         });
+
         const s = site(g, x, z);
-        s.circle(0, 0, 0.3);
+        s.circle(0, 0, 0.35);
+        anchors.signpost = {
+            x, z, y: heightAt(x, z),
+            destinations: dest.map(d => ({
+                label: d.label,
+                icon: d.icon,
+                target: d.target,
+                distance: Math.round(Math.hypot(d.target.x - x, d.target.z - z)),
+            })),
+        };
     }
 
     // ---------------- Garden west of the cottage ----------------
@@ -286,23 +326,210 @@ export function buildProps(scene, { colliders, clear }) {
         anchors.fishing = { ...s.world(0.6, deckY, length - 0.8), facing: yaw };
         anchors.pierEnd = s.world(0, deckY, length);
 
-        // Rowboat moored alongside, rocking on the swell.
+        // ---------------- Handcrafted Wooden Clinker Rowboat ----------------
         const boat = new THREE.Group();
-        const hull = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), mat(0x9a6a42, { side: THREE.DoubleSide }));
-        hull.scale.set(0.95, 0.55, 2.1);
+        boat.name = 'island-rowboat';
+
+        // Procedural clinker hull: tapered bow cutwater, rounded bilge, wineglass transom stern
+        const hullGeo = new THREE.BufferGeometry();
+        const N_STATIONS = 16;
+        const N_STRIPS = 8;
+        const positions = [];
+        const indices = [];
+
+        // Stations along boat length from stern (z = -1.40) to bow (z = +1.65)
+        for (let i = 0; i < N_STATIONS; i++) {
+            const t = i / (N_STATIONS - 1);
+            const z = -1.40 + t * 3.05;
+            // Half-width profile: transom (0.44) -> midships beam (0.68) -> knife prow (0.012)
+            const w = t <= 0.44
+                ? 0.44 + (0.68 - 0.44) * Math.sin((t / 0.44) * Math.PI * 0.5)
+                : 0.012 + (0.68 - 0.012) * Math.cos(((t - 0.44) / 0.56) * Math.PI * 0.5);
+            // Sheerline curve: dips at rowlocks (z = -0.05), rises at transom and bow
+            const s = 0.13 + (t > 0.44
+                ? 0.19 * Math.pow((t - 0.44) / 0.56, 2)
+                : 0.09 * Math.pow((0.44 - t) / 0.44, 2));
+            // Keel rocker curve
+            const k = -0.32 + 0.08 * Math.pow((t - 0.44) / 0.56, 2);
+
+            for (let j = 0; j <= N_STRIPS; j++) {
+                const u = (j / N_STRIPS) * 2 - 1; // -1 (port sheer) ... 0 (keel) ... +1 (starboard sheer)
+                const absU = Math.abs(u);
+                const px = Math.sign(u) * w * Math.pow(absU, 0.72);
+                const py = k + (s - k) * Math.pow(absU, 1.18);
+                positions.push(px, py, z);
+            }
+        }
+
+        for (let i = 0; i < N_STATIONS - 1; i++) {
+            const row1 = i * (N_STRIPS + 1);
+            const row2 = (i + 1) * (N_STRIPS + 1);
+            for (let j = 0; j < N_STRIPS; j++) {
+                const a = row1 + j;
+                const b = row2 + j;
+                const c = row1 + j + 1;
+                const d = row2 + j + 1;
+                indices.push(a, b, c);
+                indices.push(c, b, d);
+            }
+        }
+
+        hullGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        hullGeo.setIndex(indices);
+        hullGeo.computeVertexNormals();
+
+        const hullMat = mat(0x9a6438, { roughness: 0.62, metalness: 0.06, side: THREE.DoubleSide });
+        const hull = new THREE.Mesh(hullGeo, hullMat);
         hull.castShadow = true;
+        hull.receiveShadow = true;
         boat.add(hull);
-        boat.add(put(new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 4, 20), mat(WHITE)), 0, 0, 0, Math.PI / 2, 0, 0));
-        boat.children[1].scale.set(0.95, 2.1, 1);
-        boat.add(put(box(1.7, 0.08, 0.35, WOOD_DARK), 0, -0.12, 0.5), put(box(1.6, 0.08, 0.35, WOOD_DARK), 0, -0.15, -0.8));
-        for (const sx of [-1, 1]) boat.add(put(box(0.07, 0.05, 2.4, 0xc9a26b), sx * 0.75, 0.05, 0, 0, sx * 0.15, sx * 0.3));
+
+        // Transom board (stern flat wall at z = -1.40)
+        const transomShape = new THREE.Shape();
+        transomShape.moveTo(0, -0.32);
+        transomShape.lineTo(0.38, -0.12);
+        transomShape.lineTo(0.44, 0.22);
+        transomShape.lineTo(-0.44, 0.22);
+        transomShape.lineTo(-0.38, -0.12);
+        transomShape.closePath();
+        const transomGeo = new THREE.ExtrudeGeometry(transomShape, { depth: 0.04, bevelEnabled: false });
+        transomGeo.translate(0, 0, -1.42);
+        const transom = new THREE.Mesh(transomGeo, mat(0x5a341c, { roughness: 0.5 }));
+        transom.castShadow = true;
+        boat.add(transom);
+
+        // Wooden gunwale cap rails along port and starboard sheers
+        for (const sx of [-1, 1]) {
+            const railCurvePoints = [];
+            for (let i = 0; i < N_STATIONS; i++) {
+                const t = i / (N_STATIONS - 1);
+                const z = -1.40 + t * 3.05;
+                const w = t <= 0.44
+                    ? 0.44 + (0.68 - 0.44) * Math.sin((t / 0.44) * Math.PI * 0.5)
+                    : 0.012 + (0.68 - 0.012) * Math.cos(((t - 0.44) / 0.56) * Math.PI * 0.5);
+                const s = 0.13 + (t > 0.44
+                    ? 0.19 * Math.pow((t - 0.44) / 0.56, 2)
+                    : 0.09 * Math.pow((0.44 - t) / 0.44, 2));
+                railCurvePoints.push(new THREE.Vector3(sx * w, s + 0.01, z));
+            }
+            const railCurve = new THREE.CatmullRomCurve3(railCurvePoints);
+            const railGeo = new THREE.TubeGeometry(railCurve, 20, 0.024, 6, false);
+            const railMesh = new THREE.Mesh(railGeo, mat(0x422614, { roughness: 0.45 }));
+            railMesh.castShadow = true;
+            boat.add(railMesh);
+        }
+
+        // Stem post (sharp cutwater bow timber) & polished brass bow band
+        const stem = box(0.04, 0.62, 0.06, 0x422614);
+        stem.position.set(0, 0.05, 1.63);
+        stem.rotation.x = -0.18;
+        boat.add(stem);
+        const stemBand = box(0.044, 0.58, 0.02, 0xd4a359, { metalness: 0.85, roughness: 0.25 });
+        stemBand.position.set(0, 0.06, 1.65);
+        stemBand.rotation.x = -0.18;
+        boat.add(stemBand);
+
+        // Brass bow mooring ring & coiled hemp painter rope
+        const bowRing = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.012, 6, 12), mat(0xd4a359, { metalness: 0.85, roughness: 0.25 }));
+        bowRing.position.set(0, 0.18, 1.68);
+        bowRing.rotation.y = Math.PI / 2;
+        boat.add(bowRing);
+        const painterRope = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.022, 6, 16), mat(0xc2aa7a, { roughness: 0.9 }));
+        painterRope.position.set(0, 0.08, 1.25);
+        painterRope.rotation.x = Math.PI / 2;
+        boat.add(painterRope);
+
+        // Centerline timber keel & stern tracking skeg
+        const keel = box(0.06, 0.08, 2.95, 0x422614);
+        keel.position.set(0, -0.32, 0.05);
+        boat.add(keel);
+        const skeg = box(0.04, 0.12, 0.65, 0x422614);
+        skeg.position.set(0, -0.36, -0.95);
+        boat.add(skeg);
+
+        // Floor duckboards (bottom slatted floor grating)
+        const floorGrating = box(0.62, 0.025, 2.15, 0xaf7c4b, { roughness: 0.85 });
+        floorGrating.position.set(0, -0.22, 0.0);
+        boat.add(floorGrating);
+
+        // Thwarts (seating benches)
+        // Bow thwart (triangular fore bench)
+        boat.add(put(box(0.55, 0.05, 0.32, 0x5a341c), 0, 0.06, 1.18));
+        // Stern bench (aft seats)
+        boat.add(put(box(0.88, 0.05, 0.35, 0x5a341c), 0, 0.05, -1.15));
+
+        // Center rowing thwart for the rower
+        const rowerSeat = new THREE.Object3D();
+        rowerSeat.position.set(0, -0.06, -0.05);
+        boat.add(rowerSeat);
+        boat.add(put(box(1.30, 0.06, 0.34, 0x5a341c), 0, -0.06, -0.05));
+        boat.userData.seat = rowerSeat;
+
+        // Articulate oars on swivel rowlocks with inboard handles and outboard spoon blades
+        for (const sx of [-1, 1]) {
+            const oarPivot = new THREE.Group();
+            oarPivot.position.set(sx * 0.68, 0.14, -0.05);
+
+            // Brass rowlock socket on gunwale & crutch fork
+            const socket = box(0.08, 0.03, 0.08, 0xd4a359, { metalness: 0.85, roughness: 0.25 });
+            socket.position.set(0, -0.01, 0);
+            oarPivot.add(socket);
+            const crutch = new THREE.Mesh(new THREE.TorusGeometry(0.048, 0.012, 6, 12, Math.PI), mat(0xd4a359, { metalness: 0.85, roughness: 0.25 }));
+            crutch.rotation.x = Math.PI;
+            crutch.position.set(0, 0.035, 0);
+            oarPivot.add(crutch);
+            const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.12, 6), mat(0x3a3f44));
+            pin.position.set(0, -0.02, 0);
+            oarPivot.add(pin);
+
+            // Inboard handle: reaches inside from rowlock directly into the rower's hand
+            const handleShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.024, 0.48, 8), mat(0x9a6840));
+            handleShaft.rotation.z = -sx * (Math.PI / 2 - 0.25);
+            handleShaft.position.set(-sx * 0.22, 0.07, 0.12);
+            oarPivot.add(handleShaft);
+            const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.14, 8), mat(0xdec096, { roughness: 0.5 }));
+            grip.rotation.z = -sx * (Math.PI / 2 - 0.25);
+            grip.position.set(-sx * 0.42, 0.14, 0.18);
+            oarPivot.add(grip);
+
+            // Leather stop collar at the rowlock pivot
+            const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.10, 8), mat(0x3e2316));
+            collar.rotation.z = sx * (Math.PI / 2 - 0.25);
+            collar.position.set(sx * 0.06, -0.02, 0);
+            oarPivot.add(collar);
+
+            // Outboard shaft: slopes down towards water
+            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.02, 2.2, 6), mat(0xc9a26b));
+            shaft.rotation.z = sx * (Math.PI / 2 - 0.25);
+            shaft.position.set(sx * 0.95, -0.22, 0);
+            shaft.castShadow = true;
+            oarPivot.add(shaft);
+
+            // Outboard spoon blade: vertical water-bite orientation
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.025, 0.55), mat(0x8a5a36));
+            blade.position.set(sx * 1.95, -0.46, 0);
+            blade.rotation.z = sx * 0.15;
+            blade.rotation.x = Math.PI / 2;
+            blade.castShadow = true;
+            oarPivot.add(blade);
+
+            boat.add(oarPivot);
+            if (sx < 0) boat.userData.leftOar = oarPivot;
+            else boat.userData.rightOar = oarPivot;
+        }
+
         const moor = s.world(3.4, 0, 18);
         boat.position.copy(moor);
         boat.rotation.y = yaw + 0.08;
+        boat.userData.moor = moor.clone();
+        boat.userData.moorYaw = yaw + 0.08;
+        boat.userData.isRowing = false;
+        anchors.rowboat = boat;
         scene.add(boat);
         colliders.push({ x: moor.x, z: moor.z, r: 1.4 });
         animated.push((dt, t, env) => {
-            boat.position.y = env.water.heightAt(moor.x, moor.z, t) + 0.32;
+            if (boat.userData.isRowing) return;
+            boat.position.y = env.water.heightAt(boat.position.x, boat.position.z, t) + 0.32;
             boat.rotation.z = Math.sin(t * 1.1) * 0.06;
             boat.rotation.x = Math.sin(t * 0.8 + 1) * 0.04;
         });
@@ -330,38 +557,59 @@ export function buildProps(scene, { colliders, clear }) {
     {
         const { x, z } = PLACES.campfire;
         const g = new THREE.Group();
-        for (let i = 0; i < 10; i++) {
-            const a = (i / 10) * Math.PI * 2;
-            const st = new THREE.Mesh(new THREE.DodecahedronGeometry(0.26, 0), mat(i % 2 ? 0x8d877d : 0x77716a));
-            g.add(put(st, Math.cos(a) * 0.95, 0.12, Math.sin(a) * 0.95, a, a * 2, 0));
+
+        // Stone fire ring: 12 natural river boulders resting on the sand
+        for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            const st = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0), mat(i % 3 === 0 ? 0x8d877d : (i % 3 === 1 ? 0x77716a : 0x5a544e)));
+            g.add(put(st, Math.cos(a) * 0.85, 0.10, Math.sin(a) * 0.85, a * 1.3, a * 2.1, a * 0.7));
         }
-        for (let i = 0; i < 4; i++) {
-            const a = (i / 4) * Math.PI * 2 + 0.4;
-            g.add(put(cyl(0.09, 0.11, 1.3, 6, 0x5a3a24), Math.cos(a) * 0.3, 0.42, Math.sin(a) * 0.3, Math.sin(a) * 0.6, 0, -Math.cos(a) * 0.6));
-        }
+
+        // Charcoal ash bed & glowing red-orange embers
+        const ashBed = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.75, 0.08, 12), mat(0x1a1512, { roughness: 0.95 }));
+        ashBed.position.y = 0.04;
+        g.add(ashBed);
+        const emberBed = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.08, 12), mat(0xff3d00, { emissive: 0xff3800, emissiveIntensity: 1.4, roughness: 0.85 }));
+        emberBed.position.y = 0.08;
+        g.add(emberBed);
+
+        // Criss-cross firewood logs nestled on glowing embers
+        g.add(put(cyl(0.07, 0.07, 0.68, 6, 0x3e2617), -0.16, 0.12, 0.0, 0, 0.35, Math.PI / 2));
+        g.add(put(cyl(0.07, 0.07, 0.68, 6, 0x3e2617), 0.16, 0.12, 0.0, 0, -0.3, Math.PI / 2));
+        g.add(put(cyl(0.065, 0.065, 0.62, 6, 0x4a2e1b), 0.0, 0.20, -0.16, 0.25, Math.PI / 2, 0));
+        g.add(put(cyl(0.065, 0.065, 0.62, 6, 0x4a2e1b), 0.0, 0.20, 0.16, -0.25, Math.PI / 2, 0));
+        g.add(put(cyl(0.06, 0.06, 0.54, 6, 0x321a0f), -0.14, 0.23, 0.10, -0.2, 0.65, 0.3));
+        g.add(put(cyl(0.06, 0.06, 0.54, 6, 0x321a0f), 0.14, 0.23, -0.10, 0.2, -0.65, -0.3));
+
+        // Log seats positioned at a comfortable distance (1.65m) and adapted to local beach slope
         const seats = [];
+        const campGroundH = heightAt(x, z);
         [-0.3, 1.5, 3.3].forEach((a, i) => {
-            const lx = Math.cos(a) * 2.7, lz = Math.sin(a) * 2.7;
-            g.add(put(cyl(0.3, 0.32, 2.0, 8, i % 2 ? 0x8a5a36 : 0x7a4f30), lx, 0.28, lz, 0, -a, Math.PI / 2));
-            seats.push({ lx, lz, a });
+            const lx = Math.cos(a) * 1.65, lz = Math.sin(a) * 1.65;
+            const wx = x + lx, wz = z + lz;
+            const logGroundH = heightAt(wx, wz);
+            const localY = (logGroundH - campGroundH) + 0.20;
+            g.add(put(cyl(0.28, 0.29, 1.7, 8, i % 2 ? 0x8a5a36 : 0x7a4f30), lx, localY, lz, 0, -a, Math.PI / 2));
+            seats.push({ lx, lz, a, groundH: logGroundH });
         });
         bakeStatic(g);
         const s = site(g, x, z, 0, 0.05);
         s.circle(0, 0, 1.2);
-        // Fire: flickering cones, embers, a warm light.
+
+        // Fire: multi-layered flickering cones, embers, and warm illumination
         const fire = new THREE.Group();
         fire.userData.dynamic = true;
-        const flames = [[0xff7a1a, 0.55, 1.5], [0xffb13b, 0.38, 1.15], [0xffe58a, 0.2, 0.8]].map(([c, r, h]) => {
+        const flames = [[0xff5c12, 0.44, 1.15], [0xffa024, 0.32, 0.90], [0xfff3a8, 0.18, 0.62]].map(([c, r, h]) => {
             const f = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, fog: false }));
-            f.position.y = 0.3 + h / 2;
+            f.position.y = 0.18 + h / 2;
             fire.add(f);
             return f;
         });
         const light = new THREE.PointLight(0xff9a4a, 0, 18, 1.6);
-        light.position.y = 1.4;
+        light.position.y = 1.2;
         fire.add(light);
-        const fireGlow = glow(0xff9a4a, 5);
-        fireGlow.position.y = 0.9;
+        const fireGlow = glow(0xff9a4a, 4.5);
+        fireGlow.position.y = 0.75;
         fire.add(fireGlow);
         const emberCount = 28, emberPos = new Float32Array(emberCount * 3), emberLife = new Float32Array(emberCount);
         const emberGeo = new THREE.BufferGeometry();
@@ -381,7 +629,7 @@ export function buildProps(scene, { colliders, clear }) {
             fireGlow.material.opacity = 0.35 + env.night * 0.6;
             for (let i = 0; i < emberCount; i++) {
                 emberLife[i] -= dt;
-                if (emberLife[i] <= 0) { emberLife[i] = 1.2 + Math.random() * 1.4; emberPos.set([(Math.random() - 0.5) * 0.5, 0.6, (Math.random() - 0.5) * 0.5], i * 3); }
+                if (emberLife[i] <= 0) { emberLife[i] = 1.2 + Math.random() * 1.4; emberPos.set([(Math.random() - 0.5) * 0.45, 0.35, (Math.random() - 0.5) * 0.45], i * 3); }
                 emberPos[i * 3 + 1] += dt * (1.1 + (i % 5) * 0.2);
                 emberPos[i * 3] += Math.sin(t * 3 + i) * dt * 0.3;
             }
@@ -389,9 +637,9 @@ export function buildProps(scene, { colliders, clear }) {
         });
         anchors.campfire = {
             center: s.world(0, 0, 0),
-            seats: seats.map(({ lx, lz, a }) => {
-                const w = s.world(lx, 0.62, lz);
-                return { x: w.x, z: w.z, y: w.y, facing: Math.atan2(-lx, -lz) };
+            seats: seats.map(({ lx, lz, a, groundH }) => {
+                const w = s.world(lx, 0, lz);
+                return { x: w.x, z: w.z, y: groundH + 0.48, facing: Math.atan2(-lx, -lz) };
             }),
         };
         for (const { lx, lz } of seats) s.circle(lx, lz, 0.5);
@@ -406,20 +654,65 @@ export function buildProps(scene, { colliders, clear }) {
         const g = new THREE.Group();
         const span = 4.4;
         for (const s of [-1, 1]) {
-            let px = 0, py = 0;
-            for (let i = 0; i < 5; i++) {
-                const lean = 0.08 + i * 0.05;
-                g.add(put(cyl(0.16 - i * 0.012, 0.19 - i * 0.012, 1.1, 6, i % 2 ? 0xa3784f : 0x8f6a45), s * (span / 2 + px), py + 0.55, 0, 0, 0, s * lean));
-                px += Math.sin(lean) * 1.05;
-                py += Math.cos(lean) * 1.05;
+            const numSegs = 6;
+            const segH = 0.95;
+            const step = 0.88;
+            let jx = s * (span / 2);
+            let jy = 0;
+
+            for (let i = 0; i < numSegs; i++) {
+                const rBot = 0.22 - i * 0.012;
+                const rTop = 0.22 - (i + 1) * 0.012;
+                // Gentle outward lean: tilts outward towards +x for s=1, -x for s=-1
+                const lean = 0.05 + i * 0.035;
+                const rz = -s * lean;
+                const cx = jx + s * (step * 0.5) * Math.sin(lean);
+                const cy = jy + (step * 0.5) * Math.cos(lean);
+
+                const trunkMat = i % 2 ? 0xa3784f : 0x8f6a45;
+                g.add(put(cyl(rTop, rBot, segH, 7, trunkMat), cx, cy, 0, 0, 0, rz));
+
+                // Wooden hammock attachment peg where ropes anchor (around segment 1 at y ~ 1.55)
+                if (i === 1) {
+                    g.add(put(cyl(0.04, 0.04, 0.35, 6, 0x6e4a30), cx - s * 0.15, cy, 0, 0, 0, Math.PI / 2));
+                }
+
+                jx += s * step * Math.sin(lean);
+                jy += step * Math.cos(lean);
             }
-            for (let i = 0; i < 7; i++) {
-                const a = (i / 7) * Math.PI * 2;
+
+            // Crown top tuft
+            g.add(put(cyl(0.18, 0.14, 0.35, 7, 0x5a3e26), jx, jy + 0.1, 0, 0, 0, -s * 0.25));
+
+            // Clusters of coconuts under the palm fronds
+            for (let c = 0; c < 4; c++) {
+                const ca = c * (Math.PI / 2) + 0.35;
+                const coc = new THREE.Mesh(new THREE.IcosahedronGeometry(0.17, 0), mat(0x6b4a2a, { roughness: 0.85 }));
+                g.add(put(coc, jx + Math.cos(ca) * 0.22, jy - 0.12, Math.sin(ca) * 0.22));
+            }
+
+            // Radial drooping palm fronds
+            for (let f = 0; f < 8; f++) {
+                const a = (f / 8) * Math.PI * 2;
                 const frond = new THREE.Group();
-                frond.add(put(box(0.45, 0.05, 1.5, i % 2 ? 0x4c9a3c : 0x5aae46), 0, 0, 0.75, -0.2, 0, 0));
-                frond.add(put(box(0.38, 0.05, 1.3, 0x3f8a33), 0, -0.22, 2.0, 0.55, 0, 0));
-                put(frond, s * (span / 2 + px), py, 0, 0, a, 0);
+                // Inner upward-arching frond segment
+                frond.add(put(box(0.48, 0.045, 1.4, f % 2 ? 0x4c9a3c : 0x5aae46), 0, 0.12, 0.65, -0.18, 0, 0));
+                // Middle outward-arching frond segment
+                frond.add(put(box(0.40, 0.038, 1.35, 0x3f8a33), 0, 0.02, 1.85, 0.28, 0, 0));
+                // Drooping leafy tip segment
+                frond.add(put(box(0.30, 0.032, 1.25, f % 2 ? 0x337528 : 0x4c9a3c), 0, -0.42, 2.9, 0.68, 0, 0));
+                // Central stem rib for structural visual fidelity
+                frond.add(put(box(0.06, 0.06, 3.4, 0x7da852), 0, 0.02, 1.6, 0.22, 0, 0));
+
+                put(frond, jx, jy + 0.12, 0, 0, a, 0);
                 g.add(frond);
+            }
+
+            // Top center young upright fronds
+            for (let u = 0; u < 3; u++) {
+                const ua = u * (Math.PI * 2 / 3) + 0.5;
+                const upFrond = put(box(0.32, 0.03, 1.2, 0x6ec054), jx, jy + 0.45, 0, -0.65, ua, 0);
+                g.add(upFrond);
             }
         }
         bakeStatic(g);
@@ -639,16 +932,53 @@ export function buildProps(scene, { colliders, clear }) {
         scene.add(g);
     }
 
-    // ---------------- The car, parked by the cottage ----------------
+    // ---------------- Offshore Navigation Buoy (Explorer's Easter Egg) ----------------
     {
-        const { x, z, heading } = PLACES.car;
-        const carObj = buildCar();
-        bakeStatic(carObj.userData.chassis);
-        carObj.position.set(x, heightAt(x, z), z);
-        carObj.rotation.y = heading;
-        scene.add(carObj);
-        anchors.car = carObj;
-        clear.push({ x, z, r: 4 });
+        const bx = 18.0, bz = 65.0;
+        const buoy = new THREE.Group();
+        buoy.name = 'offshore-buoy';
+
+        // Float hull
+        const floatMat = mat(0xc2410c, { roughness: 0.6 });
+        const floatHull = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 0.75, 0.8, 10), floatMat);
+        floatHull.castShadow = true;
+        buoy.add(floatHull);
+
+        // White reflective band
+        const bandMat = mat(0xf8fafc, { roughness: 0.5 });
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.96, 0.90, 0.28, 10), bandMat);
+        band.position.y = 0.15;
+        buoy.add(band);
+
+        // Tower cage & bell
+        const cageMat = mat(0x334155, { roughness: 0.7, metalness: 0.4 });
+        const cage = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.82, 1.3, 4), cageMat);
+        cage.position.y = 0.95;
+        buoy.add(cage);
+
+        // Solar beacon lantern
+        const lantern = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.28, 8), lanternMat);
+        lantern.position.y = 1.7;
+        buoy.add(lantern);
+        addGlow(buoy, 0, 1.7, 0, 0xffb74d, 2.5);
+
+        // Brass explorer plaque
+        const plaqueMat = mat(0xd97706, { roughness: 0.35, metalness: 0.8 });
+        const plaque = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.04), plaqueMat);
+        plaque.position.set(0, 0.15, 0.92);
+        buoy.add(plaque);
+
+        buoy.position.set(bx, 0, bz);
+        scene.add(buoy);
+        anchors.buoy = buoy;
+        colliders.push({ x: bx, z: bz, r: 1.3 });
+
+        animated.push((dt, t, env) => {
+            const wy = env.water.heightAt(bx, bz, t);
+            buoy.position.y = wy + 0.32;
+            buoy.rotation.z = Math.sin(t * 1.35) * 0.09;
+            buoy.rotation.x = Math.cos(t * 1.1) * 0.07;
+        });
     }
 
     // Day/night ramp for emissive materials and glow sprites.

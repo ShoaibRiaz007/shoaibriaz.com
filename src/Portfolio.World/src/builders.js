@@ -33,10 +33,25 @@ export function textTexture(lines, { width = 512, height = 256, bg = '#0d1a2c', 
     g.fillStyle = bg;
     g.fillRect(0, 0, width, height);
     g.fillStyle = accent;
-    g.fillRect(0, 0, width, 8);
-    const pad = 28;
+    g.fillRect(0, 0, width, Math.max(4, Math.round(height * 0.03)));
+
+    const activeLines = lines.filter(Boolean);
+    if (height <= 96 && activeLines.length <= 1) {
+        const size = Math.round(height * 0.45);
+        g.font = `800 ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillStyle = fg;
+        g.fillText(String(activeLines[0] || ''), width / 2, height / 2 + 2);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 4;
+        return tex;
+    }
+
+    const pad = Math.min(28, Math.round(width * 0.06));
     let y = pad + 18;
-    lines.filter(Boolean).forEach((line, i) => {
+    activeLines.forEach((line, i) => {
         const big = title && i === 0;
         const size = big ? Math.round(height / 6.2) : Math.round(height / 11);
         g.font = `${big ? 800 : 600} ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`;
@@ -48,6 +63,92 @@ export function textTexture(lines, { width = 512, height = 256, bg = '#0d1a2c', 
         }
         y += size * 0.35;
     });
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
+}
+
+/** Directional wooden fingerboard texture with carved/painted text, icon, and directional arrow. */
+export function signboardTexture({ label, icon = '', arrow = 'right', width = 512, height = 128, bg = '#fbf3de', fg = '#261609', accent = '#ea580c' } = {}) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const g = canvas.getContext('2d');
+
+    // Sunlit cream painted wood plank
+    g.fillStyle = bg;
+    g.fillRect(0, 0, width, height);
+
+    // Weathered board border bevel
+    g.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    g.lineWidth = 4;
+    g.strokeRect(2, 2, width - 4, height - 4);
+
+    g.strokeStyle = 'rgba(80, 50, 25, 0.35)';
+    g.lineWidth = 4;
+    g.strokeRect(6, 6, width - 12, height - 12);
+
+    // Subtle wood grain lines
+    g.strokeStyle = 'rgba(160, 120, 80, 0.12)';
+    g.lineWidth = 2;
+    for (let y = 20; y < height; y += 22) {
+        g.beginPath();
+        g.moveTo(10, y);
+        g.lineTo(width - 10, y);
+        g.stroke();
+    }
+
+    g.textBaseline = 'middle';
+    const text = label.toUpperCase();
+    const arrowSymbol = arrow === 'left' ? '◀' : '▶';
+
+    g.font = '900 36px "Nunito", system-ui, -apple-system, sans-serif';
+
+    // Highlight drop shadow
+    g.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    if (arrow === 'left') {
+        g.textAlign = 'left';
+        g.fillText(`${arrowSymbol}  ${text}`, 24, height / 2 + 2);
+        if (icon) {
+            g.textAlign = 'right';
+            g.fillText(icon, width - 24, height / 2 + 2);
+        }
+    } else {
+        g.textAlign = 'left';
+        const prefix = icon ? `${icon}  ` : '';
+        g.fillText(prefix + text, 24, height / 2 + 2);
+        g.textAlign = 'right';
+        g.fillText(arrowSymbol, width - 24, height / 2 + 2);
+    }
+
+    // Crisp foreground text & colored arrow
+    if (arrow === 'left') {
+        g.textAlign = 'left';
+        g.fillStyle = accent;
+        g.fillText(arrowSymbol, 24, height / 2);
+        const arrowWidth = g.measureText(arrowSymbol + '  ').width;
+        g.fillStyle = fg;
+        g.fillText(text, 24 + arrowWidth, height / 2);
+        if (icon) {
+            g.textAlign = 'right';
+            g.fillText(icon, width - 24, height / 2);
+        }
+    } else {
+        g.textAlign = 'left';
+        let xOffset = 24;
+        if (icon) {
+            g.fillStyle = fg;
+            g.fillText(icon, xOffset, height / 2);
+            xOffset += g.measureText(icon + '  ').width;
+        }
+        g.fillStyle = fg;
+        g.fillText(text, xOffset, height / 2);
+        g.textAlign = 'right';
+        g.fillStyle = accent;
+        g.fillText(arrowSymbol, width - 24, height / 2);
+    }
+
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;
@@ -137,88 +238,5 @@ export function bakeStatic(group) {
         group.add(merged);
     }
     return group;
-}
-
-/** The player's car: a bevelled body extruded from a side profile (sporty hatch), tinted glass cabin, wheel
- * arches, spoiler and emissive lights. Wheels and the seat anchor are exposed for animation and the driver. */
-export function car() {
-    const g = new THREE.Group();
-    const chassis = new THREE.Group();      // bobs on the suspension; wheels stay planted
-    g.add(chassis);
-
-    // Side profile in (z, y): nose at +z. Extruded across the car's width with a soft bevel.
-    const profile = new THREE.Shape();
-    [[-2.3, 0.45], [-2.35, 1.05], [-2.0, 1.2], [-0.9, 1.25], [1.4, 1.15], [2.25, 0.85], [2.35, 0.45]]
-        .forEach(([z, y], i) => (i ? profile.lineTo(z, y) : profile.moveTo(z, y)));
-    profile.closePath();
-    const bodyGeo = new THREE.ExtrudeGeometry(profile, { depth: 1.8, bevelEnabled: true, bevelSize: 0.18, bevelThickness: 0.18, bevelSegments: 2 });
-    bodyGeo.rotateY(Math.PI / 2);
-    bodyGeo.translate(-0.9, 0, 0);
-    const paint = mat(PALETTE.accent, { roughness: 0.35, metalness: 0.35 });
-    const body = new THREE.Mesh(bodyGeo, paint);
-    body.castShadow = body.receiveShadow = true;
-    chassis.add(body);
-
-    // Cabin: tinted glass with a body-coloured roof strip.
-    const cabinShape = new THREE.Shape();
-    [[-1.55, 1.2], [-1.25, 1.9], [0.25, 1.95], [1.05, 1.2]].forEach(([z, y], i) => (i ? cabinShape.lineTo(z, y) : cabinShape.moveTo(z, y)));
-    cabinShape.closePath();
-    const cabinGeo = new THREE.ExtrudeGeometry(cabinShape, { depth: 1.5, bevelEnabled: true, bevelSize: 0.08, bevelThickness: 0.08, bevelSegments: 1 });
-    cabinGeo.rotateY(Math.PI / 2);
-    cabinGeo.translate(-0.75, 0, 0);
-    const glass = new THREE.Mesh(cabinGeo, mat(0x0d1d2c, { roughness: 0.1, metalness: 0.6, transparent: true, opacity: 0.55 }));
-    chassis.add(glass);
-    const roof = box(1.5, 0.08, 1.5, PALETTE.accent, { roughness: 0.35, metalness: 0.35 });
-    roof.position.set(0, 1.99, -0.5);
-    chassis.add(roof);
-
-    // Details: racing stripe, spoiler, lights, grille, mirrors.
-    const stripe = box(0.35, 0.02, 4.3, 0xf5f7fa, { roughness: 0.4 });
-    stripe.position.set(0, 1.32, 0.05);
-    chassis.add(stripe);
-    const wing = box(2.0, 0.08, 0.45, 0x1b2a3c);
-    wing.position.set(0, 1.55, -2.25);
-    chassis.add(wing);
-    for (const x of [-0.75, 0.75]) {
-        const strut = box(0.08, 0.32, 0.12, 0x1b2a3c);
-        strut.position.set(x, 1.38, -2.2);
-        chassis.add(strut);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.06), mat(0xfff4d6, { emissive: 0xfff4d6, emissiveIntensity: 1.6 }));
-        head.position.set(x, 0.85, 2.52);
-        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.06), mat(0xff3b3b, { emissive: 0xff3b3b, emissiveIntensity: 1.2 }));
-        tail.position.set(x, 0.95, -2.5);
-        const mirror = box(0.25, 0.14, 0.18, PALETTE.accent);
-        mirror.position.set(x * 1.45, 1.35, 0.95);
-        chassis.add(head, tail, mirror);
-    }
-    const grille = box(1.1, 0.22, 0.05, 0x0d141c);
-    grille.position.set(0, 0.6, 2.53);
-    chassis.add(grille);
-
-    // Wheels with rims, sitting in dark arches.
-    const wheels = [];
-    const tyre = new THREE.CylinderGeometry(0.48, 0.48, 0.36, 14);
-    const rim = new THREE.CylinderGeometry(0.28, 0.28, 0.38, 8);
-    for (const [x, z] of [[-1.0, 1.45], [1.0, 1.45], [-1.0, -1.45], [1.0, -1.45]]) {
-        const arch = box(0.3, 0.5, 1.25, 0x0d141c);
-        arch.position.set(x * 1.02, 0.62, z);
-        chassis.add(arch);
-        const w = new THREE.Group();
-        const t = new THREE.Mesh(tyre, mat(0x101418, { roughness: 0.9 }));
-        const r = new THREE.Mesh(rim, mat(0xc9d3dc, { roughness: 0.3, metalness: 0.8 }));
-        t.castShadow = true;
-        w.add(t, r);
-        w.rotation.z = Math.PI / 2;
-        w.position.set(x * 1.05, 0.48, z);
-        g.add(w);
-        wheels.push(w);
-    }
-    // Where a seated driver goes (left-hand drive seat, under the glass).
-    const seat = new THREE.Group();
-    seat.position.set(0.35, 0.55, -0.45);
-    chassis.add(seat);
-
-    g.userData = { wheels, chassis, seat };
-    return g;
 }
 

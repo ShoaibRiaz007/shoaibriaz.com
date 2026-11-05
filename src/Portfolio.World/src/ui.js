@@ -2,6 +2,7 @@
 // journal, map, time-of-day and help panels, the letter, photo mode, fades. All text is set with textContent
 // (or fixed markup we write), never from API data as HTML.
 import { ACTIVITIES, FISH } from './activities.js';
+import { TREASURES } from './treasure.js';
 import { groundColor, heightAt, pathDistance } from './terrain.js';
 
 const $ = id => document.getElementById(id);
@@ -53,7 +54,7 @@ export function createUI({ save, audio, coarse, profile }) {
         }
     };
 
-    ui.toast = ({ icon = '•', title, body = '' }) => {
+    ui.toast = ({ icon = '•', title, body = '', sub = '' }) => {
         const box = $('toasts');
         const t = document.createElement('div');
         t.className = 'toast';
@@ -64,7 +65,7 @@ export function createUI({ save, audio, coarse, profile }) {
         const b = document.createElement('b');
         b.textContent = title;
         const s = document.createElement('span');
-        s.textContent = body;
+        s.textContent = body || sub || '';
         text.append(b, s);
         t.append(i, text);
         box.append(t);
@@ -101,19 +102,40 @@ export function createUI({ save, audio, coarse, profile }) {
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(e => hold.addEventListener(e, holdOff));
 
     // ---------- panels ----------
-    const dialogs = ['journal', 'map', 'timePanel', 'help', 'letter', 'info'].map($);
+    const dialogs = ['journal', 'map', 'timePanel', 'help', 'letter', 'info', 'completionModal'].map($);
     dialogs.forEach(d => {
         d.addEventListener('click', e => { if (e.target === d || e.target.closest('[data-close]')) d.close(); });
         d.addEventListener('close', () => handlers.panelClosed?.());
     });
+    addEventListener('keydown', e => {
+        if (e.key === 'Escape' && ui.anyOpen()) {
+            ui.closeAll();
+        }
+    });
     ui.anyOpen = () => dialogs.some(d => d.open);
-    ui.closeAll = () => dialogs.forEach(d => d.open && d.close());
+    ui.closeAll = () => {
+        let anyOpen = false;
+        dialogs.forEach(d => {
+            if (d.open) {
+                d.close();
+                anyOpen = true;
+            }
+        });
+        if (anyOpen) handlers.panelClosed?.();
+    };
     function toggle(d, render) {
         if (d.open) { d.close(); return; }
         ui.closeAll();
         render?.();
         d.showModal();
         audio.play('click');
+    }
+
+    function openModal(d) {
+        if (!d || d.open) return;
+        ui.closeAll();
+        d.showModal();
+        audio.play('chime', [60, 64, 67, 72, 76, 79, 84]);
     }
 
     // Journal
@@ -123,9 +145,31 @@ export function createUI({ save, audio, coarse, profile }) {
         const unseen = ACTIVITIES.some(a => journal.seen[a.id] && !journal.done[a.id]);
         $('journalBadge').hidden = !unseen || $('journal').open;
     };
+    ui.showCompletion = () => {
+        openModal($('completionModal'));
+    };
     function renderJournal() {
         const done = ACTIVITIES.filter(a => journal.done[a.id]).length;
-        $('journalTitle').textContent = `Journal · ${done}/${ACTIVITIES.length}`;
+        const isMaster = done === ACTIVITIES.length;
+        $('journalTitle').textContent = isMaster ? `Journal · ${done}/${ACTIVITIES.length} ★ Complete!` : `Journal · ${done}/${ACTIVITIES.length}`;
+
+        let masterBanner = $('journalMasterBanner');
+        if (isMaster) {
+            if (!masterBanner) {
+                masterBanner = document.createElement('div');
+                masterBanner.id = 'journalMasterBanner';
+                masterBanner.className = 'journal-master-banner';
+                $('todoList').before(masterBanner);
+            }
+            masterBanner.innerHTML = '<span>🏆 100% Island Explored!</span><button type="button" class="journal-master-btn" id="openMasterBtn">Read Message →</button>';
+            masterBanner.querySelector('#openMasterBtn')?.addEventListener('click', () => {
+                $('journal').close();
+                ui.showCompletion();
+            });
+        } else if (masterBanner) {
+            masterBanner.remove();
+        }
+
         $('todoList').replaceChildren(...ACTIVITIES.map(a => {
             const li = document.createElement('li');
             const isDone = !!journal.done[a.id], seen = !!journal.seen[a.id];
@@ -136,10 +180,23 @@ export function createUI({ save, audio, coarse, profile }) {
             const text = document.createElement('div');
             const t = document.createElement('div');
             t.className = 't';
-            t.textContent = a.id === 'shells' ? `${a.title} (${journal.shells.length}/12)` : a.title;
+            if (a.id === 'shells') {
+                t.textContent = `${a.title} (${journal.shells.length}/12)`;
+            } else if (a.id === 'treasure') {
+                const found = journal.treasures?.length ?? 0;
+                t.textContent = `${a.title} (${found}/${TREASURES.length})`;
+            } else {
+                t.textContent = a.title;
+            }
             const h = document.createElement('div');
             h.className = 'h';
-            h.textContent = isDone ? '' : a.hint;
+            if (isDone) {
+                h.textContent = '';
+            } else if (a.id === 'treasure' && journal.currentClue) {
+                h.textContent = `Active clue: ${journal.currentClue}`;
+            } else {
+                h.textContent = a.hint;
+            }
             text.append(t, h);
             li.append(mark, text);
             return li;
@@ -167,10 +224,12 @@ export function createUI({ save, audio, coarse, profile }) {
             ['Fish caught', journal.catches],
             ['Kinds of fish', `${Object.keys(journal.fish).length} / ${FISH.length}`],
             ['Seashells', `${journal.shells.length} / 12`],
+            ['Treasures unearthed', `${journal.treasures?.length ?? 0} / 4`],
             ['Flowers planted', journal.planted],
             ['Sky lanterns', journal.lanterns],
             ['Wishes', journal.wishes],
             ['Best stone skip', journal.bestSkip],
+            ['Best keep-up volley', journal.bestKeepUp ? `${journal.bestKeepUp} bounces` : '0'],
             ['Cat pets', journal.pets],
             ['Photos', journal.photos],
         ];
@@ -334,6 +393,9 @@ export function createUI({ save, audio, coarse, profile }) {
         for (const [k, v] of Object.entries(attrs)) {
             if (k === 'class') el.className = v;
             else if (k === 'href') { if (/^(https?:|mailto:|\/)/i.test(v)) el.href = v; }
+            else if (k.startsWith('on') && typeof v === 'function') {
+                el.addEventListener(k.slice(2).toLowerCase(), v);
+            }
             else el.setAttribute(k, v);
         }
         for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== '') el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));

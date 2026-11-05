@@ -36,4 +36,22 @@ public class PublicApiController : ControllerBase
         var detail = await _content.GetProjectDetailAsync(slug, ct);
         return detail is null ? NotFound() : ApiModels.ToDto(detail);
     }
+
+    /// <summary>Career milestones and company history, grouped and ordered chronologically.</summary>
+    [HttpGet("experience")]
+    [OutputCache(PolicyName = "public-content")]
+    public async Task<ActionResult<IReadOnlyList<CompanyDto>>> Experience(CancellationToken ct)
+    {
+        var site = await _content.GetSiteAsync(ct);
+        return ApiModels.ToDto(site).Experience.ToList();
+    }
+
+    /// <summary>Public profile and contact links.</summary>
+    [HttpGet("profile")]
+    [OutputCache(PolicyName = "public-content")]
+    public async Task<ActionResult<ProfileDto>> Profile(CancellationToken ct)
+    {
+        var bio = await _content.GetBioAsync(ct);
+        return ApiModels.ToDto(bio);
+    }
 }

@@ -55,6 +55,20 @@
     </div>
     <div id="controls" class="controls" hidden></div>
     <div id="toasts" class="toasts" aria-live="polite"></div>
+    <!-- Beach Ball Keep-Up HUD -->
+    <div id="ballHud" class="ball-hud" hidden aria-live="polite">
+        <div class="ball-hud-card">
+            <div class="ball-hud-header">
+                <span class="ball-hud-icon" aria-hidden="true">🏐</span>
+                <span id="ballHudStatus" class="ball-hud-label">BEACH VOLLEYBALL</span>
+            </div>
+            <div id="ballHudCombo" class="ball-hud-combo">0</div>
+            <div class="ball-hud-footer">
+                <span id="ballHudHint" class="ball-hud-hint">Keep it in the air!</span>
+                <span id="ballHudBest" class="ball-hud-best">Best: 0</span>
+            </div>
+        </div>
+    </div>
 
     <div id="card" class="card" role="status" hidden>
         <div class="card-icon" id="cardIcon"></div>
@@ -128,6 +142,31 @@
     <dialog id="letter" class="panel letter" aria-labelledby="letterTitle">
         <header class="panel-head"><h2 id="letterTitle">A letter</h2><button type="button" class="close" data-close aria-label="Close">✕</button></header>
         <div class="letter-body" id="letterBody"></div>
+    </dialog>
+
+    <dialog id="completionModal" class="panel completion-modal" aria-labelledby="completionTitle">
+        <header class="panel-head">
+            <div class="completion-kicker">★ ISLAND EXPLORATION 100% COMPLETE ★</div>
+            <button type="button" class="close" data-close aria-label="Close">✕</button>
+        </header>
+        <div class="completion-body">
+            <div class="completion-hero">
+                <span class="completion-trophy" aria-hidden="true">🏆</span>
+                <h2 id="completionTitle">You've Reached the End of the Island</h2>
+                <p class="completion-subtitle">Every secret discovered, every trail walked, every trial conquered.</p>
+            </div>
+            <div class="completion-quote">
+                <p>“If you took the time to explore this world, roast marshmallows by the campfire, and row out onto the swell, you know the kind of care, systems thinking, performance, and attention to detail I bring to everything I build.”</p>
+                <div class="completion-author">— Shoaib Riaz</div>
+            </div>
+            <p class="completion-pitch">Looking for a senior / lead engineer who builds with this level of craft and passion? Let's connect and build something extraordinary together.</p>
+            <div class="completion-actions">
+                <a href="/#contact" class="btn-primary completion-connect" target="_top">Let's Connect →</a>
+                <a href="/projects" class="chip" target="_top">View Case Studies</a>
+                <a href="/cv" class="chip" target="_top">Download CV</a>
+                <button type="button" class="btn-ghost" data-close>Keep Exploring Island</button>
+            </div>
+        </div>
     </dialog>
 
     <div id="photoBar" class="photo-bar" hidden>

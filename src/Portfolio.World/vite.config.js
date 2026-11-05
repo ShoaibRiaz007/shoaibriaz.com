@@ -11,7 +11,12 @@ export default defineConfig({
         chunkSizeWarningLimit: 800,
     },
     server: {
-        // `npm run dev` against a locally running site (dotnet run on :5099) for live content.
-        proxy: { '/api': 'http://localhost:5099' },
+        // `npm run dev` against a locally running site (dotnet run on :5132 or :8080) for live content.
+        proxy: {
+            '/api': {
+                target: process.env.BACKEND_URL || 'http://localhost:8080',
+                changeOrigin: true,
+            },
+        },
     },
 });

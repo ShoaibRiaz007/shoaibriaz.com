@@ -140,7 +140,17 @@ export function createLife(scene, { anchors, water, quality }) {
     const ffPos = new Float32Array(ffCount * 3), ffSeed = new Float32Array(ffCount);
     for (let i = 0; i < ffCount; i++) {
         let x = 0, z = 0;
-        for (let k = 0; k < 200; k++) { x = (rand() * 2 - 1) * 85; z = (rand() * 2 - 1) * 65; if (isMeadow(x, z)) break; }
+        if (i < 14 && anchors.campfire?.center) {
+            const angle = rand() * Math.PI * 2, dist = 1.8 + rand() * 4.5;
+            x = anchors.campfire.center.x + Math.cos(angle) * dist;
+            z = anchors.campfire.center.z + Math.sin(angle) * dist;
+        } else if (i < 24 && anchors.hammock) {
+            const angle = rand() * Math.PI * 2, dist = 1.5 + rand() * 4.0;
+            x = anchors.hammock.x + Math.cos(angle) * dist;
+            z = anchors.hammock.z + Math.sin(angle) * dist;
+        } else {
+            for (let k = 0; k < 200; k++) { x = (rand() * 2 - 1) * 85; z = (rand() * 2 - 1) * 65; if (isMeadow(x, z)) break; }
+        }
         ffPos.set([x, heightAt(x, z) + 0.5 + rand() * 1.8, z], i * 3);
         ffSeed[i] = rand() * 100;
     }

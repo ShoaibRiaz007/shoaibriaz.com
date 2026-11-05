@@ -168,7 +168,10 @@
         const settle = () => {
             boost *= 0.92;
             if (Math.abs(boost) < 0.02) boost = 0;
-            looping.forEach(a => { a.playbackRate = 1 + boost; });
+            looping.forEach(a => {
+                a.playbackRate = 1 + boost;
+                if (!boost && a.playState === 'finished') a.play();
+            });
             if (boost) requestAnimationFrame(settle); else settling = false;
         };
         const regions = [...document.querySelectorAll('[data-velocity]')];
@@ -190,8 +193,14 @@
     const clamp01 = v => Math.min(1, Math.max(0, v));
     const effects = {
         // Custom properties in px from the element's corner, for a glow centred on the pointer.
-        spotlight: { move(el, e, r) { el.style.setProperty('--mx', e.clientX - r.left + 'px'); el.style.setProperty('--my', e.clientY - r.top + 'px'); } },
-        glow: { move(el, e, r) { el.style.setProperty('--gx', e.clientX - r.left + 'px'); el.style.setProperty('--gy', e.clientY - r.top + 'px'); } },
+        spotlight: {
+            move(el, e, r) { el.style.setProperty('--mx', e.clientX - r.left + 'px'); el.style.setProperty('--my', e.clientY - r.top + 'px'); },
+            leave(el) { el.style.removeProperty('--mx'); el.style.removeProperty('--my'); },
+        },
+        glow: {
+            move(el, e, r) { el.style.setProperty('--gx', e.clientX - r.left + 'px'); el.style.setProperty('--gy', e.clientY - r.top + 'px'); },
+            leave(el) { el.style.removeProperty('--gx'); el.style.removeProperty('--gy'); },
+        },
         // -1..1 from the centre; whatever reads --px/--py leans with it, and settles back on leave.
         lean: {
             move(el, e, r) {
@@ -210,7 +219,7 @@
                 el.style.setProperty('--rx', ((0.5 - y) * 6).toFixed(2) + 'deg');
                 el.style.setProperty('--ry', ((x - 0.5) * 6).toFixed(2) + 'deg');
             },
-            leave(el) { el.classList.remove('tilting'); el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); },
+            leave(el) { el.classList.remove('tilting'); el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); el.style.removeProperty('--gx'); el.style.removeProperty('--gy'); },
         },
         // Drawn up to ~10px toward the pointer while it is anywhere in the element's area.
         magnet: {

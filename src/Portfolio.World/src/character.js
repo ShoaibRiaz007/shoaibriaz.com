@@ -222,12 +222,28 @@ export function createCharacter() {
     rod.visible = false;
     arms[1].hand.add(rod);
 
+    // Roasting stick with marshmallow in the right hand
+    const roastStick = new THREE.Group();
+    roastStick.add(mesh(new THREE.CylinderGeometry(0.006, 0.012, 1.3, 5), 0x5a3e26, 0, 0.6, 0));
+    const mallowGeo = new THREE.CylinderGeometry(0.038, 0.038, 0.065, 8);
+    const mallowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+    const marshmallow = new THREE.Mesh(mallowGeo, mallowMat);
+    marshmallow.position.set(0, 1.22, 0);
+    marshmallow.rotation.x = Math.PI / 2;
+    roastStick.add(marshmallow);
+    roastStick.position.set(0, -0.04, 0.02);
+    roastStick.rotation.set(1.98, 0.06, -0.10);
+    roastStick.visible = false;
+    arms[1].hand.add(roastStick);
+
     root.userData = {
-        pelvis, spine, chest, neck, head, arms, legs, rod, rodTip,
+        pelvis, spine, body: spine, chest, neck, head, arms, legs, rod, rodTip,
+        roastStick, marshmallow,
         state: 'idle', waveUntil: 0, phase: 0, still: 0, lastHeading: 0, lastSpeed: 0, turn: 0, accel: 0,
         // Current joint values; every frame these ease toward the target pose.
         cur: null,
     };
+    root.machine = createCharacterStateMachine(root);
     return root;
 }
 
@@ -240,7 +256,6 @@ const P = (o) => ({
 });
 const POSES = {
     sit: P({ spine: -0.06, ls: [-0.45, -0.12], le: -0.55, rs: [-0.45, 0.12], re: -0.55, lh: -1.5, rh: -1.5, lk: 1.5, rk: 1.5, lf: 0.05, rf: 0.05 }),
-    drive: P({ spine: -0.12, ls: [-0.95, -0.12], le: -0.55, rs: [-0.95, 0.12], re: -0.55, lh: -1.45, rh: -1.45, lk: 1.25, rk: 1.25, lf: -0.2, rf: -0.2 }),
     swing: P({ spine: -0.05, ls: [-2.8, -0.08], le: 0.05, rs: [-2.8, 0.08], re: 0.05, lh: -1.4, rh: -1.4, lk: 1.15, rk: 1.15 }),
     lie: P({ ls: [-2.75, -0.55], le: -2.1, rs: [-2.75, 0.55], re: -2.1, lh: -0.5, rh: 0, lk: 1.0, rk: 0.05, neckX: -0.15 }),
     crouch: P({ py: -0.42, spine: 0.45, ls: [-0.55, -0.15], le: -0.35, rs: [-0.95, 0.12], re: -0.45, lh: -1.35, rh: -1.1, lk: 2.1, rk: 1.9, lf: -0.6, rf: -0.6, neckX: 0.25 }),
@@ -251,10 +266,117 @@ const POSES = {
     release: P({ spine: -0.12, ls: [-2.6, -0.2], le: -0.25, rs: [-2.6, 0.2], re: -0.25, neckX: -0.35 }),
     look: P({ spine: 0.15, ls: [-1.35, 0.4], le: -1.65, rs: [-1.25, -0.3], re: -1.75, lh: -0.08, rh: 0.08, neckX: 0.05 }),
     read: P({ spine: 0.06, ls: [-0.9, -0.05], le: -1.2, rs: [-0.9, 0.05], re: -1.2, neckX: 0.35 }),
+    row: P({ spine: 0.12, ls: [-0.85, -0.15], le: -0.65, rs: [-0.85, 0.15], re: -0.65, lh: -1.45, rh: -1.45, lk: 1.35, rk: 1.35, lf: 0.05, rf: 0.05 }),
+    roast: P({ spine: 0.04, ls: [-0.45, -0.12], le: -0.55, rs: [-0.68, 0.14], re: -0.38, lh: -1.5, rh: -1.5, lk: 1.5, rk: 1.5, lf: 0.05, rf: 0.05, neckX: 0.22 }),
 };
 
+export const CharacterPoseState = {
+    IDLE: 'idle',
+    SIT: 'sit',
+    SWING: 'swing',
+    LIE: 'lie',
+    CROUCH: 'crouch',
+    FISH: 'fish',
+    CAST: 'cast',
+    REEL: 'reel',
+    THROW: 'throw',
+    RELEASE: 'release',
+    LOOK: 'look',
+    READ: 'read',
+    ROW: 'row',
+    ROAST: 'roast',
+};
+
+export function createCharacterStateMachine(avatar) {
+    const u = avatar.userData;
+    let state = u.state || CharacterPoseState.IDLE;
+
+    const stateHandlers = {
+        locomotion: {
+            standing: true,
+            getTarget(dt, t, { speed = 0, onStep } = {}) {
+                if (speed > 0.05) {
+                    const g = clamp((speed - 2.6) / 2.6, 0, 1);
+                    const step = 0.78 + (1.85 - 0.78) * g;
+                    const prev = u.phase;
+                    u.phase += (speed * dt / step) * Math.PI;
+                    if (onStep && Math.floor(prev / Math.PI) !== Math.floor(u.phase / Math.PI)) onStep();
+                } else {
+                    const near = Math.round(u.phase / Math.PI) * Math.PI;
+                    u.phase += (near - u.phase) * Math.min(1, dt * 6);
+                }
+                const target = locomotion(u, dt, t, speed);
+                if (t < u.waveUntil && speed < 0.3) {
+                    target.rs = [-0.35, 2.55];
+                    target.re = -0.4 + Math.sin(t * 9) * 0.35;
+                    target.neckX = -0.05;
+                }
+                return target;
+            },
+            postJoints() {},
+        },
+        pose: {
+            standing: false,
+            getTarget() {
+                return POSES[state] ?? P({});
+            },
+            postJoints(cur, t, parts) {
+                if (state === CharacterPoseState.CROUCH && parts?.rightArm) {
+                    parts.rightArm.elbow.rotation.z = Math.sin(t * 7) * 0.25;
+                }
+                if (state === CharacterPoseState.SWING && parts?.lleg && parts?.rleg) {
+                    const phase = u.swingPhase ?? 0;
+                    const amp = u.swingAmp ?? 0;
+                    const pump = Math.sin(phase) * amp;
+                    const lean = Math.cos(phase) * amp * 0.4;
+                    if (parts.spine) parts.spine.rotation.x = -0.05 - lean;
+                    const kneeBend = Math.max(0.1, 1.15 - pump * 0.9);
+                    const hipFlex = -1.4 - pump * 0.35;
+                    parts.lleg.knee.rotation.x = kneeBend;
+                    parts.rleg.knee.rotation.x = kneeBend;
+                    parts.lleg.hip.rotation.x = hipFlex;
+                    parts.rleg.hip.rotation.x = hipFlex;
+                }
+                if (state === CharacterPoseState.ROW && parts?.leftArm && parts?.rightArm) {
+                    const stroke = u.rowStroke ?? 0;
+                    const pull = Math.sin(stroke);
+                    if (parts.spine) parts.spine.rotation.x = 0.08 - pull * 0.16;
+                    parts.leftArm.shoulder.rotation.x = -0.85 - pull * 0.35;
+                    parts.rightArm.shoulder.rotation.x = -0.85 - pull * 0.35;
+                    parts.leftArm.elbow.rotation.x = -0.65 - Math.max(0, pull) * 0.45;
+                    parts.rightArm.elbow.rotation.x = -0.65 - Math.max(0, pull) * 0.45;
+                }
+                if (state === CharacterPoseState.ROAST && parts?.rightArm) {
+                    parts.rightArm.shoulder.rotation.y = Math.sin(t * 1.8) * 0.05;
+                    parts.rightArm.elbow.rotation.x = -0.38 + Math.sin(t * 2.3) * 0.04;
+                }
+            },
+        },
+    };
+
+    return {
+        get current() { return state; },
+        transition(next) {
+            state = next;
+            u.state = next;
+        },
+        evaluate(dt, t, opts = {}) {
+            const isLocomotion = state === CharacterPoseState.IDLE;
+            const handler = isLocomotion ? stateHandlers.locomotion : stateHandlers.pose;
+            return {
+                target: handler.getTarget(dt, t, opts),
+                postJoints: handler.postJoints,
+                standing: handler.standing,
+            };
+        },
+    };
+}
+
 /** Switches pose; joints ease toward it. */
-export function setPose(c, name) { c.userData.state = name; }
+export function setPose(c, name) {
+    if (c.machine) c.machine.transition(name);
+    else c.userData.state = name;
+}
 
 const clamp = THREE.MathUtils.clamp;
 
@@ -313,7 +435,10 @@ function locomotion(u, dt, t, speed) {
 export function animateCharacter(c, dt, t, { speed = 0, heading = c.rotation.y, onStep } = {}) {
     const u = c.userData;
     dt = Math.max(dt, 1e-4);
-    const standing = u.state === 'idle';
+    const machine = (c.machine ??= createCharacterStateMachine(c));
+    const evalResult = machine.evaluate(dt, t, { speed, onStep });
+    const standing = evalResult.standing;
+
     // Turn rate and acceleration feed the lean and banking.
     let dh = heading - u.lastHeading;
     dh = Math.atan2(Math.sin(dh), Math.cos(dh));
@@ -323,28 +448,7 @@ export function animateCharacter(c, dt, t, { speed = 0, heading = c.rotation.y, 
     u.lastSpeed = speed;
     u.still = speed < 0.2 && standing ? u.still + dt : 0;
 
-    let target;
-    if (standing) {
-        if (speed > 0.05) {
-            const g = clamp((speed - 2.6) / 2.6, 0, 1);
-            const step = 0.78 + (1.85 - 0.78) * g;               // metres per step
-            const prev = u.phase;
-            u.phase += (speed * dt / step) * Math.PI;
-            if (onStep && Math.floor(prev / Math.PI) !== Math.floor(u.phase / Math.PI)) onStep();
-        } else {
-            // Settle the legs together rather than freezing mid-stride.
-            const near = Math.round(u.phase / Math.PI) * Math.PI;
-            u.phase += (near - u.phase) * Math.min(1, dt * 6);
-        }
-        target = locomotion(u, dt, t, speed);
-        if (t < u.waveUntil && speed < 0.3) {
-            target.rs = [-0.35, 2.55];
-            target.re = -0.4 + Math.sin(t * 9) * 0.35;
-            target.neckX = -0.05;
-        }
-    } else {
-        target = POSES[u.state] ?? P({});
-    }
+    const target = evalResult.target;
 
     // Ease every joint toward its target: fast enough to keep cycles crisp, soft enough to blend poses.
     const k = 1 - Math.exp(-dt * (standing ? 22 : 9));
@@ -372,6 +476,5 @@ export function animateCharacter(c, dt, t, { speed = 0, heading = c.rotation.y, 
     rleg.knee.rotation.set(cur.rk, 0, 0);
     lleg.ankle.rotation.set(cur.lf, 0, 0);
     rleg.ankle.rotation.set(cur.rf, 0, 0);
-    // A crouch pats the ground / pets the cat.
-    if (u.state === 'crouch') right.elbow.rotation.z = Math.sin(t * 7) * 0.25;
+    evalResult.postJoints(cur, t, { rightArm: right, leftArm: left, lleg, rleg, spine: u.spine, pelvis: u.pelvis });
 }

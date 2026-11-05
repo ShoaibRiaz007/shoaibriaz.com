@@ -285,7 +285,7 @@ main:focus { outline: none; }
 }
 .hero .headline { font-size: clamp(18px, 2.4vw, 24px); font-weight: 700; color: var(--text); }
 /* Rotating headline word: every phrase is stacked in one grid cell (so the widest sets the width and nothing
-   shifts), and public.js marks one .on at a time. Without JS the first phrase shows. */
+   shifts), and motion.js marks one .on at a time. Without JS the first phrase shows. */
 .rotator { display: inline-grid; vertical-align: bottom; overflow: hidden; }
 .rotator > span {
     grid-area: 1 / 1; white-space: nowrap;

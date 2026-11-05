@@ -9,7 +9,8 @@
     var path = Context.Request.Path.Value ?? "/";
     string? Current(string href) => path.Equals(href, StringComparison.OrdinalIgnoreCase) ? "page" : null;
     var structuredData = PublicSite.StructuredData(bio, origin, canonical, hasImage ? image : null, Model.Person,
-        profilePage: meta.Type == "profile");
+        profilePage: meta.Type == "profile",
+        project: (Model as ProjectDetailViewModel)?.Project);
 }
 <!DOCTYPE html>
 <html lang="en" class="no-js">

@@ -177,4 +177,23 @@ public class MotionVocabularyTests
         Assert.Equal(new[] { "nested", "single" }, Styled(stripped, "data-enter").Order());
         Assert.Equal(new[] { "children" }, Styled(stripped, "data-pointer-each"));
     }
+
+    [Fact]
+    public void AllPointerEffects_HaveLeaveCleanup()
+    {
+        // Spotlight, glow, lean, tilt, and magnet all set inline styles or classes and must clean them up on leave.
+        var js = Js.Replace("\r\n", "\n");
+        Assert.Contains("leave(el) { el.style.removeProperty('--mx'); el.style.removeProperty('--my'); }", js);
+        Assert.Contains("leave(el) { el.style.removeProperty('--gx'); el.style.removeProperty('--gy'); }", js);
+        Assert.Contains("leave(el) { el.style.removeProperty('--px'); el.style.removeProperty('--py'); }", js);
+        Assert.Contains("leave(el) { el.classList.remove('tilting'); el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); el.style.removeProperty('--gx'); el.style.removeProperty('--gy'); }", js);
+        Assert.Contains("leave(el) { el.style.removeProperty('--tx'); el.style.removeProperty('--ty'); }", js);
+    }
+
+    [Fact]
+    public void LoopingAnimations_ResumeWhenFinishedOnSettle()
+    {
+        // Guard against infinite animations entering finished state when playbackRate was driven negative by upward scroll.
+        Assert.Contains("if (!boost && a.playState === 'finished') a.play();", Js.Replace("\r\n", "\n"));
+    }
 }

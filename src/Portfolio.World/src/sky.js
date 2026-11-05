@@ -110,20 +110,31 @@ export function createSky(scene, quality) {
     stars.frustumCulled = false;
     scene.add(stars);
 
-    // Clouds: soft low-poly puffs; their colour follows the sky so they blush at sunset and go slate at night.
+    // Clouds: soft low-poly puffs drifting peacefully across the island sky.
     const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true, roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.25, fog: false });
     const clouds = [];
     const puff = new THREE.IcosahedronGeometry(1, 1);
-    for (let i = 0; i < 14; i++) {
+    const NUM_CLOUDS = 22;
+    const WIND_DIR = new THREE.Vector2(0.88, 0.47).normalize();
+    const DRIFT_SPAN = 520;
+    const HALF_SPAN = DRIFT_SPAN * 0.5;
+
+    for (let i = 0; i < NUM_CLOUDS; i++) {
         const n = 4 + Math.floor(rand() * 4), parts = [];
         for (let j = 0; j < n; j++) {
             const s = 5 + rand() * 6 * (1 - Math.abs(j - n / 2) / n);
             parts.push(puff.clone().scale(s * 1.3, s * 0.7, s).translate((j - n / 2) * 6.5 + rand() * 2, rand() * 2.5, (rand() - 0.5) * 6));
         }
         const c = new THREE.Mesh(mergeGeometries(parts), cloudMat);     // one draw call per cloud
-        const r = 140 + rand() * 170, a = rand() * Math.PI * 2;
-        c.userData = { r, a, y: 70 + rand() * 45, speed: 0.004 + rand() * 0.006 };
-        c.rotation.y = rand() * Math.PI;
+        // Distribute clouds across the sky dome (including overhead and middle distance)
+        const x = (rand() - 0.5) * DRIFT_SPAN;
+        const z = (rand() - 0.5) * DRIFT_SPAN;
+        const baseY = 65 + rand() * 45;
+        const speed = 2.6 + rand() * 2.4; // 2.6 to 5.0 m/s gentle visible drift speed
+        const phase = rand() * Math.PI * 2;
+        c.userData = { x, z, baseY, speed, phase };
+        c.position.set(x, baseY, z);
+        c.rotation.y = rand() * Math.PI * 2;
         scene.add(c);
         clouds.push(c);
     }
@@ -173,8 +184,25 @@ export function createSky(scene, quality) {
         cloudMat.emissiveIntensity = 0.35 - k.night * 0.2;
         for (const c of clouds) {
             const u = c.userData;
-            u.a += u.speed * dt * 0.1;
-            c.position.set(Math.cos(u.a) * u.r + focus.x * 0.6, u.y, Math.sin(u.a) * u.r + focus.z * 0.6);
+            u.x += WIND_DIR.x * u.speed * dt;
+            u.z += WIND_DIR.y * u.speed * dt;
+
+            // Seamless toroidal wrap when drifting past the world boundary relative to focus
+            const relX = u.x - focus.x * 0.3;
+            if (relX > HALF_SPAN) {
+                u.x -= DRIFT_SPAN;
+            } else if (relX < -HALF_SPAN) {
+                u.x += DRIFT_SPAN;
+            }
+            const relZ = u.z - focus.z * 0.3;
+            if (relZ > HALF_SPAN) {
+                u.z -= DRIFT_SPAN;
+            } else if (relZ < -HALF_SPAN) {
+                u.z += DRIFT_SPAN;
+            }
+
+            const floatY = u.baseY + Math.sin(t * 0.25 + u.phase) * 1.2;
+            c.position.set(u.x, floatY, u.z);
         }
         dome.position.copy(eye);
         stars.position.copy(eye);

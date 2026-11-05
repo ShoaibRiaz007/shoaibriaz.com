@@ -248,18 +248,14 @@ export function createAudio() {
         click() { tone(1200, { dur: 0.05, vol: 0.04 }); },
         wish() { [84, 88, 91, 96, 100].forEach((n, i) => tone(hz(n), { dur: 1.6, vol: 0.04, at: i * 0.12 })); },
         door() { burst({ freq: 300, type: 'lowpass', dur: 0.3, vol: 0.12 }); },
+        oar() {
+            burst({ freq: 850, dur: 0.28, vol: 0.14, sweepTo: 320 });
+            tone(180, { dur: 0.22, vol: 0.04, to: 120 });
+        },
+        sizzle() {
+            burst({ freq: 4200, type: 'bandpass', dur: 0.14, vol: 0.08, Q: 3 });
+        },
     };
-
-    // Engine hum while driving.
-    let engine = null, engineGain = null;
-    function ensureEngine() {
-        if (engine) return;
-        engine = ctx.createOscillator();
-        engine.type = 'sawtooth';
-        engineGain = gain(0);
-        engine.connect(filter('lowpass', 380)).connect(engineGain).connect(buses.sfx);
-        engine.start();
-    }
 
     const api = {
         get ready() { return !!ctx; },
@@ -275,15 +271,15 @@ export function createAudio() {
         play(name, ...args) { if (ctx && settings.sound) SFX[name]?.(...args); },
         /**
          * Per-frame ambience. shore 0..1 = closeness to the surf, height in metres, night 0..1, fire 0..1 =
-         * closeness to the campfire, gust 0..1, drive = { speed } while driving.
+         * closeness to the campfire, gust 0..1.
          */
-        update(dt, { shore, height, night, fire, gust = 1, drive = null, muffled = false }) {
+        update(dt, { shore, height, night, fire, gust = 1, muffled = false }) {
             if (!ctx || !settings.sound) return;
             const t = ctx.currentTime;
             nightMood += ((night > 0.5 ? 1 : 0) - nightMood) * Math.min(1, dt * 0.2);
             const swell = 0.6 + Math.sin(t * 0.55) * 0.25 + Math.sin(t * 0.21 + 1) * 0.15;
-            layers.surf.gain.setTargetAtTime((0.05 + shore * 0.5) * swell * (muffled ? 0.4 : 1), t, 0.3);
-            layers.surfWash.gain.setTargetAtTime(Math.max(0, Math.sin(t * 0.55 - 0.6)) * 0.5 * shore, t, 0.2);
+            layers.surf.gain.setTargetAtTime((0.02 + shore * 0.20) * swell * (muffled ? 0.15 : 1), t, 0.3);
+            layers.surfWash.gain.setTargetAtTime(Math.max(0, Math.sin(t * 0.55 - 0.6)) * 0.18 * shore * (muffled ? 0.15 : 1), t, 0.2);
             const windLevel = (0.04 + Math.min(1, Math.max(0, height - 4) / 14) * 0.18) * (0.7 + gust * 0.5);
             layers.wind.gain.setTargetAtTime(windLevel, t, 0.5);
             layers.windFilter.frequency.setTargetAtTime(380 + Math.sin(t * 0.13) * 160 + gust * 120, t, 0.5);
@@ -301,12 +297,6 @@ export function createAudio() {
                 if (night < 0.5 && shore > 0.35) gull(Math.random() * 1.6 - 0.8);
                 nextGull = 8 + Math.random() * 14;
             }
-            if (drive) {
-                ensureEngine();
-                const s = Math.abs(drive.speed);
-                engine.frequency.setTargetAtTime(42 + s * 5, t, 0.08);
-                engineGain.gain.setTargetAtTime(0.03 + s * 0.003, t, 0.15);
-            } else if (engineGain) engineGain.gain.setTargetAtTime(0, t, 0.2);
         },
         suspend() { ctx?.suspend(); },
         resume() { ctx?.resume(); },
