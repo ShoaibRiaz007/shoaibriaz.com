@@ -1,0 +1,107 @@
+@model ArticlesViewModel
+@{
+    Layout = "_SiteLayout";
+    var bio = Model.Bio;
+    var pillar = Model.PillarArticle;
+    var clusters = Model.ClusterArticles;
+}
+
+<div data-progress>
+    <header class="cs-hero" data-pointer="spotlight">
+        <div class="container cs-hero-text">
+            <nav aria-label="Breadcrumb" data-enter="hero" style="--i:0">
+                <ol class="breadcrumb">
+                    <li><a href="/">Home</a></li>
+                    <li><span aria-current="page">Articles</span></li>
+                </ol>
+            </nav>
+            <h1 data-enter="hero" style="--i:1">Engineering Architecture & Deep Dives</h1>
+            <p class="lede" data-enter="hero" style="--i:2">
+                Production-tested architectural blueprints, systems engineering tutorials, and GenAI pipeline implementations across .NET 9, Windows IPC, Unity, and hybrid desktop systems.
+            </p>
+        </div>
+    </header>
+
+    <div class="container py-8">
+        @* Core Pillar Card *@
+        <section class="mb-12" aria-labelledby="pillar-heading">
+            <div class="section-head mb-4">
+                <span class="kicker">Core Architecture Pillar</span>
+                <h2 id="pillar-heading">Master Systems Architecture</h2>
+            </div>
+
+            <article class="card p-6" data-enter="card" data-pointer="glow">
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center gap-3">
+                        <span class="chip" style="background: var(--accent-soft); color: var(--accent); font-weight: 600;">@pillar.Category</span>
+                        <span class="text-dim text-sm">@pillar.ReadingTime</span>
+                        <span class="text-dim text-sm">· Published @pillar.PublishedDate.ToString("MMMM yyyy")</span>
+                    </div>
+
+                    <h3 class="text-2xl font-bold">
+                        <a href="/article/@pillar.Slug" class="hover:underline">@pillar.Title</a>
+                    </h3>
+
+                    <p class="text-dim">@pillar.Summary</p>
+
+                    @if (pillar.Highlights.Count > 0)
+                    {
+                        <ul class="chips my-2" aria-label="Key Takeaways">
+                            @foreach (var h in pillar.Highlights)
+                            {
+                                <li class="chip">✓ @h</li>
+                            }
+                        </ul>
+                    }
+
+                    <div class="flex items-center justify-between pt-2">
+                        <span class="text-sm text-dim">Keyword: <code>@pillar.TargetKeyword</code></span>
+                        <a href="/article/@pillar.Slug" class="btn btn-primary btn-sm">Read Architecture Blueprint →</a>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        @* Topic Clusters Grid *@
+        <section aria-labelledby="clusters-heading">
+            <div class="section-head mb-4">
+                <span class="kicker">Topic Cluster Implementation Guides</span>
+                <h2 id="clusters-heading">Focused Systems & Pipeline Tutorials</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" data-stagger="cards">
+                @foreach (var article in clusters)
+                {
+                    <article class="card p-6 flex flex-col justify-between" data-enter="card" data-pointer="glow">
+                        <div>
+                            <div class="flex items-center justify-between text-xs text-dim mb-3">
+                                <span class="chip">@article.Category</span>
+                                <span>@article.ReadingTime</span>
+                            </div>
+
+                            <h3 class="text-xl font-bold mb-2">
+                                <a href="/article/@article.Slug" class="hover:underline">@article.Title</a>
+                            </h3>
+
+                            <p class="text-dim text-sm mb-4">@article.Summary</p>
+                        </div>
+
+                        <div>
+                            @if (!string.IsNullOrWhiteSpace(article.TechStack))
+                            {
+                                <ul class="chips mb-4" aria-label="Tech">
+                                    @foreach (var tech in article.TechStack.Split(',', StringSplitOptions.TrimEntries))
+                                    {
+                                        <li class="chip text-xs">@tech</li>
+                                    }
+                                </ul>
+                            }
+
+                            <a href="/article/@article.Slug" class="btn btn-ghost btn-sm w-full">Read Deep Dive →</a>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    </div>
+</div>

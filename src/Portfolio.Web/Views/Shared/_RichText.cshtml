@@ -8,6 +8,7 @@
             switch (inline)
             {
                 case RichText.Bold b: <strong>@b.Value</strong> break;
+                case RichText.InlineCode c: <code>@c.Value</code> break;
                 case RichText.Link l:
                     var external = l.Href.StartsWith("http", StringComparison.OrdinalIgnoreCase);
                     <a href="@l.Href" rel="@(external ? "noopener" : null)" target="@(external ? "_blank" : null)">@l.Label</a>
@@ -23,6 +24,17 @@
     {
         case RichText.Heading h:
             <h2>@h.Text</h2>
+            break;
+        case RichText.SubHeading sh:
+            <h3>@sh.Text</h3>
+            break;
+        case RichText.CodeBlock cb:
+            <div class="code-block" data-lang="@cb.Language">
+                <pre><code class="language-@cb.Language">@cb.Code</code></pre>
+            </div>
+            break;
+        case RichText.Blockquote bq:
+            <blockquote><p>@{ Inlines(bq.Content); }</p></blockquote>
             break;
         case RichText.BulletList list:
             <ul>@foreach (var item in list.Items) { <li>@{ Inlines(item); }</li> }</ul>

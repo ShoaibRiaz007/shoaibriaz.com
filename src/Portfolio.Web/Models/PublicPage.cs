@@ -195,7 +195,7 @@ public static class PublicSite
     /// about that Person. The career details (job title, employer, skills, schools) appear only on pages that load
     /// them, so no page states a different job title for the same Person. The default encoder escapes &lt;, &gt; and
     /// &amp;, so admin text can't close the script element.</summary>
-    public static string StructuredData(Bio bio, string origin, string canonical, string? image, PersonFacts? facts, bool profilePage, Domain.Entities.Project? project = null)
+    public static string StructuredData(Bio bio, string origin, string canonical, string? image, PersonFacts? facts, bool profilePage, Domain.Entities.Project? project = null, Domain.Entities.Article? article = null)
     {
         var personId = origin + "/#person";
         var (locality, region, country) = ParseLocation(bio.Location);
@@ -235,11 +235,32 @@ public static class PublicSite
             },
         };
         if (profilePage)
+        {
             graph.Add(new Dictionary<string, object?>
             {
                 ["@type"] = "ProfilePage", ["url"] = canonical,
                 ["mainEntity"] = new Dictionary<string, string> { ["@id"] = personId },
             });
+            graph.Add(Compact(new()
+            {
+                ["@type"] = "ProfessionalService",
+                ["@id"] = origin + "/#service",
+                ["name"] = $"{bio.FullName} — Technical Architecture & Consulting",
+                ["url"] = origin,
+                ["image"] = image,
+                ["provider"] = new Dictionary<string, string> { ["@id"] = personId },
+                ["address"] = locality is null && country is null ? null : Compact(new()
+                {
+                    ["@type"] = "PostalAddress",
+                    ["addressLocality"] = locality,
+                    ["addressRegion"] = region,
+                    ["addressCountry"] = country,
+                }),
+                ["areaServed"] = new[] { "Worldwide", "Remote", locality ?? "Lahore" },
+                ["description"] = string.IsNullOrWhiteSpace(bio.Tagline) ? bio.Headline : bio.Tagline,
+                ["knowsAbout"] = facts is { Skills.Count: > 0 } ? facts.Skills : null,
+            }));
+        }
 
         if (project is not null)
         {
@@ -257,6 +278,26 @@ public static class PublicSite
                 ["image"] = image,
                 ["keywords"] = keywords.Length > 0 ? string.Join(", ", keywords) : null,
                 ["about"] = string.IsNullOrWhiteSpace(project.Category) ? null : project.Category,
+            }));
+        }
+
+        if (article is not null)
+        {
+            var keywords = Csv(article.TechStack);
+            graph.Add(Compact(new()
+            {
+                ["@type"] = "TechArticle",
+                ["@id"] = canonical + "/#article",
+                ["url"] = canonical,
+                ["headline"] = article.Title,
+                ["description"] = article.Summary,
+                ["author"] = new Dictionary<string, string> { ["@id"] = personId },
+                ["publisher"] = new Dictionary<string, string> { ["@id"] = origin + "/#website" },
+                ["inLanguage"] = "en",
+                ["image"] = image,
+                ["keywords"] = keywords.Length > 0 ? string.Join(", ", keywords) : null,
+                ["about"] = string.IsNullOrWhiteSpace(article.Category) ? null : article.Category,
+                ["proficiencyLevel"] = "Expert",
             }));
         }
 

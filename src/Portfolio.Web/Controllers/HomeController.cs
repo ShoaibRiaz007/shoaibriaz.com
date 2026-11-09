@@ -154,6 +154,49 @@ public class HomeController : Controller
         });
     }
 
+    [HttpGet("/articles")]
+    [OutputCache(PolicyName = "public-content")]
+    public async Task<IActionResult> Articles(CancellationToken ct)
+    {
+        var bio = await _content.GetBioAsync(ct);
+        return View(new ArticlesViewModel
+        {
+            Bio = bio,
+            PillarArticle = DefaultArticles.Pillar,
+            ClusterArticles = DefaultArticles.All.Where(a => !a.IsPillar).ToList(),
+            Meta = new PageMeta(
+                $"Technical Articles & Architecture — {bio.FullName}",
+                "In-depth architectural guides on Enterprise .NET 9, Named Pipes IPC, Unity GenAI pipelines, and modern Office add-ins.",
+                "/articles"),
+        });
+    }
+
+    [HttpGet("/article/{slug}")]
+    [OutputCache(PolicyName = "public-content")]
+    public async Task<IActionResult> Article(string slug, CancellationToken ct)
+    {
+        var article = DefaultArticles.FindBySlug(slug);
+        if (article is null) return await NotFoundPageAsync(ct);
+
+        var bio = await _content.GetBioAsync(ct);
+        var related = DefaultArticles.All.Where(a => a.Slug != article.Slug).ToList();
+        var pillar = article.IsPillar ? null : DefaultArticles.Pillar;
+
+        return View(new ArticleDetailViewModel
+        {
+            Bio = bio,
+            Article = article,
+            PillarArticle = pillar,
+            RelatedArticles = related,
+            Blocks = RichText.Parse(article.Body),
+            Meta = new PageMeta(
+                $"{article.Title} — {bio.FullName}",
+                article.Summary,
+                $"/article/{article.Slug}",
+                Type: "article"),
+        });
+    }
+
     [HttpGet("/sitemap.xml")]
     [OutputCache(PolicyName = "public-content")]
     public async Task<IActionResult> Sitemap(CancellationToken ct)
@@ -161,7 +204,10 @@ public class HomeController : Controller
         var data = await _content.GetProjectsAsync(ct);
         var origin = PublicSite.Origin(data.Bio, Request);
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
-        var paths = new[] { "/", "/projects", "/cv", "/privacy" }.Concat(data.Projects.Select(p => $"/project/{p.Slug}"));
+        var articlePaths = new[] { "/articles" }.Concat(DefaultArticles.All.Select(a => $"/article/{a.Slug}"));
+        var paths = new[] { "/", "/projects", "/cv", "/privacy" }
+            .Concat(data.Projects.Select(p => $"/project/{p.Slug}"))
+            .Concat(articlePaths);
         var xml = new XElement(ns + "urlset",
             paths.Select(path => new XElement(ns + "url", new XElement(ns + "loc", PublicSite.Absolute(origin, path)))));
         return Content("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xml, "application/xml", Encoding.UTF8);

@@ -58,6 +58,31 @@ public class RichTextTests
         Assert.Contains("180 days", filled);
         Assert.Equal(values.Keys.OrderBy(k => k), DefaultPages.PrivacyPlaceholders.Select(p => p.Name).OrderBy(k => k));
     }
+
+    [Fact]
+    public void Parses_CodeBlocksSubheadingsAndBlockquotes()
+    {
+        var text = "### Architecture Subhead\n> Important quote\n\n```csharp\nvar x = 1;\nvar y = 2;\n```";
+        var blocks = RichText.Parse(text);
+
+        Assert.Collection(blocks,
+            b => Assert.Equal("Architecture Subhead", Assert.IsType<RichText.SubHeading>(b).Text),
+            b => Assert.Equal("Important quote", Assert.IsType<RichText.Text>(Assert.Single(Assert.IsType<RichText.Blockquote>(b).Content)).Value),
+            b =>
+            {
+                var code = Assert.IsType<RichText.CodeBlock>(b);
+                Assert.Equal("csharp", code.Language);
+                Assert.Equal("var x = 1;\nvar y = 2;", code.Code);
+            });
+    }
+
+    [Fact]
+    public void Parses_InlineCode()
+    {
+        var inlines = RichText.Inlines("Use `StreamJsonRpc` with `NamedPipeServerStream`.");
+        Assert.Contains(inlines, i => i is RichText.InlineCode { Value: "StreamJsonRpc" });
+        Assert.Contains(inlines, i => i is RichText.InlineCode { Value: "NamedPipeServerStream" });
+    }
 }
 
 public class SitePageFacadeTests

@@ -12,12 +12,16 @@ public static partial class RichText
 {
     public abstract record Block;
     public sealed record Heading(string Text) : Block;
+    public sealed record SubHeading(string Text) : Block;
+    public sealed record CodeBlock(string Language, string Code) : Block;
+    public sealed record Blockquote(IReadOnlyList<Inline> Content) : Block;
     public sealed record Paragraph(IReadOnlyList<Inline> Content) : Block;
     public sealed record BulletList(IReadOnlyList<IReadOnlyList<Inline>> Items) : Block;
 
     public abstract record Inline;
     public sealed record Text(string Value) : Inline;
     public sealed record Bold(string Value) : Inline;
+    public sealed record InlineCode(string Value) : Inline;
     public sealed record Link(string Label, string Href) : Inline;
 
     public static IReadOnlyList<Block> Parse(string? body, IReadOnlyDictionary<string, string>? values = null)
@@ -26,6 +30,9 @@ public static partial class RichText
         var blocks = new List<Block>();
         var paragraph = new List<string>();
         var bullets = new List<IReadOnlyList<Inline>>();
+        var codeLines = new List<string>();
+        var inCodeBlock = false;
+        var codeLang = "";
 
         void FlushParagraph()
         {
@@ -41,11 +48,45 @@ public static partial class RichText
         foreach (var raw in text.Split('\n'))
         {
             var line = raw.Trim();
+
+            if (inCodeBlock)
+            {
+                if (line.StartsWith("```"))
+                {
+                    blocks.Add(new CodeBlock(codeLang, string.Join("\n", codeLines)));
+                    codeLines.Clear();
+                    inCodeBlock = false;
+                }
+                else
+                {
+                    codeLines.Add(raw);
+                }
+                continue;
+            }
+
             if (line.Length == 0) { FlushParagraph(); FlushBullets(); continue; }
-            if (IsHeading(line))
+
+            if (line.StartsWith("```"))
+            {
+                FlushParagraph(); FlushBullets();
+                inCodeBlock = true;
+                codeLang = line[3..].Trim();
+                codeLines.Clear();
+            }
+            else if (line.StartsWith("### "))
+            {
+                FlushParagraph(); FlushBullets();
+                blocks.Add(new SubHeading(line[4..].Trim()));
+            }
+            else if (IsHeading(line))
             {
                 FlushParagraph(); FlushBullets();
                 blocks.Add(new Heading(line.TrimStart('#').Trim()));
+            }
+            else if (line.StartsWith("> "))
+            {
+                FlushParagraph(); FlushBullets();
+                blocks.Add(new Blockquote(Inlines(line[2..].Trim())));
             }
             else if (line.StartsWith("- ") || line.StartsWith("* "))
             {
@@ -57,6 +98,10 @@ public static partial class RichText
                 FlushBullets();
                 paragraph.Add(line);
             }
+        }
+        if (inCodeBlock && codeLines.Count > 0)
+        {
+            blocks.Add(new CodeBlock(codeLang, string.Join("\n", codeLines)));
         }
         FlushParagraph();
         FlushBullets();
@@ -104,6 +149,7 @@ public static partial class RichText
         {
             if (m.Index > last) result.Add(new Text(text[last..m.Index]));
             if (m.Groups["bold"].Success) result.Add(new Bold(m.Groups["bold"].Value));
+            else if (m.Groups["code"].Success) result.Add(new InlineCode(m.Groups["code"].Value));
             else if (SafeHref(m.Groups["href"].Value) is { } href) result.Add(new Link(m.Groups["label"].Value, href));
             else result.Add(new Text(m.Groups["label"].Value));
             last = m.Index + m.Length;
@@ -126,6 +172,6 @@ public static partial class RichText
     [GeneratedRegex(@"\{([a-z_]+)\}")]
     private static partial Regex Placeholder();
 
-    [GeneratedRegex(@"\*\*(?<bold>[^*]+)\*\*|\[(?<label>[^\]]+)\]\((?<href>[^)\s]+)\)")]
+    [GeneratedRegex(@"\*\*(?<bold>[^*]+)\*\*|`(?<code>[^`]+)`|\[(?<label>[^\]]+)\]\((?<href>[^)\s]+)\)")]
     private static partial Regex InlineToken();
 }

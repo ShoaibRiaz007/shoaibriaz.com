@@ -209,4 +209,29 @@ public class StructuredDataTests
         bio.Tagline = new string('x', PublicSite.DescriptionMax - prefix.Length - suffix.Length - 1) + ".";
         Assert.Equal(PublicSite.DescriptionMax, PublicSite.Describe(bio).Length);
     }
+
+    [Fact]
+    public void HomePage_EmitsProfessionalService_WithProviderAndAddress()
+    {
+        var json = PublicSite.StructuredData(Bio(), Origin, Origin + "/", "https://img/x.jpg", Facts(), profilePage: true);
+
+        var service = Node(json, "ProfessionalService");
+        Assert.Equal("Shoaib Riaz — Technical Architecture & Consulting", service.GetProperty("name").GetString());
+        Assert.Equal(Origin + "/#person", service.GetProperty("provider").GetProperty("@id").GetString());
+        Assert.Equal("Lahore", service.GetProperty("address").GetProperty("addressLocality").GetString());
+        Assert.Equal(2, service.GetProperty("knowsAbout").GetArrayLength());
+    }
+
+    [Fact]
+    public void Article_EmitsTechArticle_WithExpertProficiency()
+    {
+        var article = DefaultArticles.ClusterIpc;
+        var json = PublicSite.StructuredData(Bio(), Origin, Origin + "/article/" + article.Slug, null, null, false, article: article);
+
+        var techArticle = Node(json, "TechArticle");
+        Assert.Equal(article.Title, techArticle.GetProperty("headline").GetString());
+        Assert.Equal("Expert", techArticle.GetProperty("proficiencyLevel").GetString());
+        Assert.Equal(Origin + "/#person", techArticle.GetProperty("author").GetProperty("@id").GetString());
+        Assert.Contains("WinUI 3", techArticle.GetProperty("keywords").GetString());
+    }
 }
