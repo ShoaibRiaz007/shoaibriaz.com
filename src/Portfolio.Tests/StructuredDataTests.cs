@@ -238,6 +238,8 @@ public class StructuredDataTests
     [Theory]
     [InlineData("", new[] { "Worldwide", "Remote" })]
     [InlineData("Pakistan", new[] { "Worldwide", "Remote", "Pakistan" })]
+    [InlineData("Lahore, Punjab, Pakistan", new[] { "Worldwide", "Remote", "Lahore" })]
+    [InlineData("Remote", new[] { "Worldwide", "Remote" })]
     public void HomePage_ProfessionalService_OmitsHardcodedLahore_WhenLocationLacksLocality(string location, string[] expectedAreas)
     {
         var bio = Bio();
