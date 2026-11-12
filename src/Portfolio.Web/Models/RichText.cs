@@ -169,6 +169,13 @@ public static partial class RichText
             : null;
     }
 
+    /// <summary>Stable HTML anchor id for a section heading, shared by heading tags and table-of-contents links.</summary>
+    public static string HeadingId(string text)
+        => NonSlugChars().Replace((text ?? "").Trim().ToLowerInvariant(), "-").Trim('-');
+
+    [GeneratedRegex(@"[^a-z0-9]+")]
+    private static partial Regex NonSlugChars();
+
     [GeneratedRegex(@"\{([a-z_]+)\}")]
     private static partial Regex Placeholder();
 

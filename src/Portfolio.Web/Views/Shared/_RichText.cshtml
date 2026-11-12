@@ -23,7 +23,7 @@
     switch (block)
     {
         case RichText.Heading h:
-            <h2>@h.Text</h2>
+            <h2 id="@RichText.HeadingId(h.Text)">@h.Text</h2>
             break;
         case RichText.SubHeading sh:
             <h3>@sh.Text</h3>

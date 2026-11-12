@@ -6,7 +6,6 @@
     var pillar = Model.PillarArticle;
     var related = Model.RelatedArticles;
 
-    // Collect headings for Table of Contents
     var headings = Model.Blocks.OfType<RichText.Heading>().Select(h => h.Text).ToList();
 }
 
@@ -25,9 +24,9 @@
                 </ol>
             </nav>
 
-            <div data-enter="hero" style="--i:1" class="mb-3">
-                <span class="chip" style="background: var(--accent-soft); color: var(--accent); font-weight: 600;">@article.Category</span>
-                <span class="text-dim text-sm ml-2">@article.ReadingTime · Published @article.PublishedDate.ToString("MMMM d, yyyy")</span>
+            <div class="article-hero-meta" data-enter="hero" style="--i:1">
+                <span class="chip chip-accent">@article.Category</span>
+                <span class="article-meta-text">@article.ReadingTime · Published @article.PublishedDate.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)</span>
             </div>
 
             <h1 data-enter="hero" style="--i:2">@article.Title</h1>
@@ -37,7 +36,7 @@
             {
                 <div class="hero-actions" data-enter="hero" style="--i:4">
                     <ul class="chips" aria-label="Tech Stack">
-                        @foreach (var tech in article.TechStack.Split(',', StringSplitOptions.TrimEntries))
+                        @foreach (var tech in PublicSite.Csv(article.TechStack))
                         {
                             <li class="chip">@tech</li>
                         }
@@ -47,19 +46,18 @@
         </div>
     </header>
 
-    <div class="container py-8">
-        <div class="article-layout">
-            @* Sidebar / Table of Contents *@
+    <div class="container article-page">
+        <div class="article-layout @(headings.Count == 0 ? "article-layout-single" : "")">
             @if (headings.Count > 0)
             {
                 <aside class="article-sidebar" aria-label="Table of Contents">
-                    <div class="card p-4 sticky top-24">
-                        <h4 class="text-xs uppercase tracking-wider text-dim font-bold mb-3">On This Page</h4>
-                        <ul class="text-sm space-y-2">
+                    <div class="card article-sidebar-card">
+                        <h4 class="article-toc-title">On This Page</h4>
+                        <ul class="article-toc">
                             @foreach (var h in headings)
                             {
                                 <li>
-                                    <a href="#@h.ToLowerInvariant().Replace(' ', '-')" class="text-dim hover:text-white">@h</a>
+                                    <a href="#@RichText.HeadingId(h)">@h</a>
                                 </li>
                             }
                         </ul>
@@ -67,63 +65,60 @@
                 </aside>
             }
 
-            @* Main Article Body *@
             <div class="article-content">
                 @if (article.Highlights.Count > 0)
                 {
-                    <div class="card p-5 mb-8" style="border-left: 4px solid var(--accent);" data-enter="card">
-                        <h3 class="text-sm font-bold uppercase tracking-wider text-accent mb-2">Key Engineering Takeaways</h3>
-                        <ul class="chips" style="gap: 0.5rem;">
+                    <div class="card article-takeaways" data-enter="card">
+                        <h3 class="article-takeaways-title">Key Engineering Takeaways</h3>
+                        <ul class="chips" aria-label="Key Takeaways">
                             @foreach (var h in article.Highlights)
                             {
-                                <li class="chip" style="background: rgba(42, 214, 168, 0.08);">✓ @h</li>
+                                <li class="chip chip-accent">✓ @h</li>
                             }
                         </ul>
                     </div>
                 }
 
-                <div class="prose max-w-none">
+                <div class="article-prose">
                     <partial name="_RichText" model="Model.Blocks" />
                 </div>
 
-                @* Cluster Navigator *@
-                <section class="mt-12 pt-8 border-t border-border" aria-labelledby="topic-cluster-heading">
-                    <h3 id="topic-cluster-heading" class="text-xl font-bold mb-4">Topic Cluster Navigation</h3>
+                <section class="article-cluster-nav" aria-labelledby="topic-cluster-heading">
+                    <h3 id="topic-cluster-heading" class="article-section-title">Topic Cluster Navigation</h3>
 
                     @if (pillar is not null)
                     {
-                        <div class="card p-5 mb-6" style="background: var(--bg-raised);" data-pointer="glow">
-                            <span class="text-xs uppercase text-accent font-bold">Parent Architecture Blueprint</span>
-                            <h4 class="text-lg font-bold mt-1 mb-2">
-                                <a href="/article/@pillar.Slug" class="hover:underline">@pillar.Title</a>
-                            </h4>
-                            <p class="text-dim text-sm mb-3">@pillar.Summary</p>
-                            <a href="/article/@pillar.Slug" class="btn btn-primary btn-sm">Read Core Pillar Blueprint →</a>
-                        </div>
+                        <article class="card article-card article-pillar" data-pointer="glow">
+                            <div class="article-card-meta">
+                                <span class="chip chip-accent">Parent Architecture Blueprint</span>
+                                <span class="article-meta-text">@pillar.ReadingTime</span>
+                            </div>
+                            <h4><a href="/article/@pillar.Slug">@pillar.Title</a></h4>
+                            <p class="summary">@pillar.Summary</p>
+                        </article>
                     }
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="article-related-grid" data-pointer-each="glow">
                         @foreach (var rel in related)
                         {
-                            <div class="card p-4" data-pointer="glow">
-                                <span class="chip text-xs mb-2">@rel.Category</span>
-                                <h5 class="font-bold text-sm mb-1">
-                                    <a href="/article/@rel.Slug" class="hover:underline">@rel.Title</a>
-                                </h5>
-                                <p class="text-xs text-dim mb-2">@rel.ReadingTime</p>
-                                <a href="/article/@rel.Slug" class="text-xs text-accent hover:underline">Read Guide →</a>
-                            </div>
+                            <article class="card article-card">
+                                <div class="article-card-meta">
+                                    <span class="chip">@rel.Category</span>
+                                    <span class="article-meta-text">@rel.ReadingTime</span>
+                                </div>
+                                <h4><a href="/article/@rel.Slug">@rel.Title</a></h4>
+                                <p class="summary">@rel.Summary</p>
+                            </article>
                         }
                     </div>
                 </section>
 
-                @* Author Bio Box *@
-                <div class="card p-6 mt-12 flex flex-col md:flex-row items-center gap-6" style="background: var(--bg-sunken);">
+                <div class="card article-author-box">
                     <div>
-                        <span class="text-xs uppercase text-dim tracking-wider font-bold">About the Author</span>
-                        <h4 class="text-lg font-bold mt-1">@bio.FullName</h4>
-                        <p class="text-dim text-sm my-2">@bio.Tagline</p>
-                        <div class="flex gap-3 text-sm">
+                        <span class="kicker">About the Author</span>
+                        <h4>@bio.FullName</h4>
+                        <p class="muted">@bio.Tagline</p>
+                        <div class="hero-actions article-author-actions">
                             <a href="/#contact" class="btn btn-ghost btn-sm">Get in Touch</a>
                             <a href="/cv" class="btn btn-ghost btn-sm">View Experience / CV</a>
                         </div>

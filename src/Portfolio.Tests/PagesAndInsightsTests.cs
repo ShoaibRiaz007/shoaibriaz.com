@@ -83,6 +83,10 @@ public class RichTextTests
         Assert.Contains(inlines, i => i is RichText.InlineCode { Value: "StreamJsonRpc" });
         Assert.Contains(inlines, i => i is RichText.InlineCode { Value: "NamedPipeServerStream" });
     }
+
+    [Fact]
+    public void HeadingId_NormalizesPunctuationAndSpaces()
+        => Assert.Equal("1-named-pipe-ipc-winui-3", RichText.HeadingId(" 1. Named-Pipe IPC: WinUI 3! "));
 }
 
 public class SitePageFacadeTests

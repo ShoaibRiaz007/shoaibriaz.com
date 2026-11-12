@@ -173,7 +173,10 @@ app.Use(async (context, next) =>
 // Serves /world/index.html for /world (the 3D tour, built from src/Portfolio.World); the redirect from
 // /world to /world/ keeps its relative asset URLs working.
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx => StaticAssetCache.Apply(ctx.Context)
+});
 
 // Unmatched public URLs get the designed 404 page (only real misses; see PublicNotFoundPages).
 app.UsePublicNotFoundPages();

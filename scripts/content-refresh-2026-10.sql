@@ -31,7 +31,7 @@ Today I lead the Lahore engineering team at Lucen Software, building AI-powered 
     "YearsExperience" = '7+',
     "LinkedIn" = 'https://www.linkedin.com/in/mshoaibriaz',
     "GitHub" = 'https://github.com/ShoaibRiaz007',
-    "Website" = 'https://shoaibriaz.com';
+    "Website" = 'https://www.shoaibriaz.com';
 
 DELETE FROM "Experiences";
 INSERT INTO "Experiences" ("Role", "Company", "EmploymentType", "Location", "StartDate", "EndDate", "Period", "Description", "SortOrder", "IsPublished") VALUES

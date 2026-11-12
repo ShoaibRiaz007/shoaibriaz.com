@@ -10,6 +10,9 @@
         .Select(p => PublicSite.ProofFigure(p.Metric) is { } f ? (f.Figure, Label: f.Label.Length > 0 ? f.Label : p.Title) : default((string Figure, string Label)?))
         .OfType<(string Figure, string Label)>().Take(2).ToList();
     var featured = Model.Projects;
+    var articles = Model.Articles;
+    var pillarArticle = articles.FirstOrDefault(a => a.IsPillar);
+    var clusterArticles = articles.Where(a => !a.IsPillar).ToList();
     var skillGroups = Model.Skills.GroupBy(s => string.IsNullOrWhiteSpace(s.Category) ? "Skills" : s.Category).ToList();
     // Headline "Team Lead · C# / .NET · AI/LLM · ..." : the first part leads, the rest rotate after it.
     var headlineParts = PublicSite.HeadlineParts(bio.Headline);
@@ -28,6 +31,7 @@
 <nav class="section-rail" aria-label="Sections on this page" data-spy="within">
     <ol>
         @if (featured.Any()) { <li><a href="#work"><span class="rail-label">Work</span></a></li> }
+        @if (articles.Any()) { <li><a href="#articles"><span class="rail-label">Articles</span></a></li> }
         @if (Model.Services.Any() && skillGroups.Any()) { <li><a href="#approach"><span class="rail-label">How I work</span></a></li> }
         @if (Model.ExperienceGroups.Any()) { <li><a href="#experience"><span class="rail-label">Experience</span></a></li> }
         @if (skillGroups.Any() || Model.Services.Any()) { <li><a href="#skills"><span class="rail-label">Skills</span></a></li> }
@@ -191,6 +195,61 @@
             <div class="project-grid featured-grid" data-stagger data-pointer-each="tilt" data-badge="View case study →">
                 @foreach (var p in featured) { <partial name="_ProjectCard" model="p" view-data="@(new ViewDataDictionary(ViewData) { ["Enter"] = "deal" })" /> }
             </div>
+        </div>
+    </section>
+}
+
+@if (articles.Any())
+{
+    <section class="section" id="articles" aria-labelledby="articles-title">
+        <div class="container">
+            <div class="section-head" data-enter="heading">
+                <div>
+                    <span class="kicker">Architecture &amp; guides</span>
+                    <h2 id="articles-title">Featured articles</h2>
+                    <p>Deep-dive blueprints on Enterprise .NET 9 desktop architecture, low-latency Windows IPC, Unity GenAI workflows, and hybrid Office add-ins.</p>
+                </div>
+                <a class="text-link arrow-link" href="/articles">All @articles.Count articles <span aria-hidden="true">→</span></a>
+            </div>
+            @if (pillarArticle is not null)
+            {
+                <article class="card article-card article-pillar" data-enter="card" data-pointer="glow">
+                    <div class="article-card-meta">
+                        <span class="chip chip-accent">@pillarArticle.Category</span>
+                        <span class="article-meta-text">@pillarArticle.ReadingTime · @pillarArticle.PublishedDate.ToString("MMM yyyy", CultureInfo.InvariantCulture)</span>
+                    </div>
+                    <h3><a href="/article/@pillarArticle.Slug">@pillarArticle.Title</a></h3>
+                    <p class="summary">@pillarArticle.Summary</p>
+                    @if (!string.IsNullOrWhiteSpace(pillarArticle.TechStack))
+                    {
+                        <ul class="chips article-tech" aria-label="Tech">
+                            @foreach (var tech in PublicSite.Csv(pillarArticle.TechStack).Take(5)) { <li class="chip">@tech</li> }
+                        </ul>
+                    }
+                </article>
+            }
+            @if (clusterArticles.Any())
+            {
+                <div class="article-grid" data-stagger data-pointer-each="glow">
+                    @foreach (var article in clusterArticles)
+                    {
+                        <article class="card article-card" data-enter="card">
+                            <div class="article-card-meta">
+                                <span class="chip">@article.Category</span>
+                                <span class="article-meta-text">@article.ReadingTime</span>
+                            </div>
+                            <h3><a href="/article/@article.Slug">@article.Title</a></h3>
+                            <p class="summary">@article.Summary</p>
+                            @if (!string.IsNullOrWhiteSpace(article.TechStack))
+                            {
+                                <ul class="chips article-tech" aria-label="Tech">
+                                    @foreach (var tech in PublicSite.Csv(article.TechStack).Take(4)) { <li class="chip">@tech</li> }
+                                </ul>
+                            }
+                        </article>
+                    }
+                </div>
+            }
         </div>
     </section>
 }

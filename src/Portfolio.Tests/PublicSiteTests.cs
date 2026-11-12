@@ -242,4 +242,43 @@ public class NotFoundRouteTests
         Assert.Contains(action.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.RouteAttribute), true),
             a => ((Microsoft.AspNetCore.Mvc.RouteAttribute)a).Template == "/not-found");
     }
+
+    [Theory]
+    [InlineData(nameof(Portfolio.Controllers.HomeController.Sitemap), "/sitemap.xml")]
+    [InlineData(nameof(Portfolio.Controllers.HomeController.Robots), "/robots.txt")]
+    public void SeoEndpoints_AcceptBothGetAndHead(string actionName, string expectedRoute)
+    {
+        var action = typeof(Portfolio.Controllers.HomeController).GetMethod(actionName)!;
+        var getAttr = Assert.Single(action.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.HttpGetAttribute), false)
+            .Cast<Microsoft.AspNetCore.Mvc.HttpGetAttribute>());
+        var headAttr = Assert.Single(action.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.HttpHeadAttribute), false)
+            .Cast<Microsoft.AspNetCore.Mvc.HttpHeadAttribute>());
+        Assert.Equal(expectedRoute, getAttr.Template);
+        Assert.Equal(expectedRoute, headAttr.Template);
+    }
+
+    [Fact]
+    public void SeedContent_Bio_UsesWwwCanonicalOrigin()
+        => Assert.Equal("https://www.shoaibriaz.com", Portfolio.Infrastructure.Persistence.SeedContent.Bio().Website);
+
+    [Theory]
+    [InlineData("?v=abc123", true)]
+    [InlineData("?v=", false)]
+    [InlineData("", false)]
+    public void StaticAssetCache_AppliesImmutableCachingOnlyWhenVersioned(string query, bool expectedHeader)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString(query);
+
+        Portfolio.Hosting.StaticAssetCache.Apply(context);
+
+        if (expectedHeader)
+        {
+            Assert.Equal(Portfolio.Hosting.StaticAssetCache.ImmutableHeaderValue, context.Response.Headers.CacheControl.ToString());
+        }
+        else
+        {
+            Assert.True(string.IsNullOrEmpty(context.Response.Headers.CacheControl));
+        }
+    }
 }

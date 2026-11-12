@@ -18,7 +18,7 @@ public static class SeedContent
         Email = "riazshoaib17@gmail.com",
         LinkedIn = "https://www.linkedin.com/in/mshoaibriaz",
         GitHub = "https://github.com/ShoaibRiaz007",
-        Website = "https://shoaibriaz.com",
+        Website = "https://www.shoaibriaz.com",
     };
 
     public static List<Experience> Experiences() => new()

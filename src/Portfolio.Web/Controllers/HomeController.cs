@@ -40,6 +40,7 @@ public class HomeController : Controller
             Testimonials = data.Testimonials.ToList(),
             Educations = data.Educations.ToList(),
             Certifications = data.Certifications.ToList(),
+            Articles = DefaultArticles.All,
             TotalProjects = data.TotalProjects,
             Person = PersonFacts.From(data.Experiences, data.Skills, data.Educations),
             Meta = new PageMeta(
@@ -197,7 +198,7 @@ public class HomeController : Controller
         });
     }
 
-    [HttpGet("/sitemap.xml")]
+    [HttpGet("/sitemap.xml"), HttpHead("/sitemap.xml")]
     [OutputCache(PolicyName = "public-content")]
     public async Task<IActionResult> Sitemap(CancellationToken ct)
     {
@@ -213,7 +214,7 @@ public class HomeController : Controller
         return Content("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xml, "application/xml", Encoding.UTF8);
     }
 
-    [HttpGet("/robots.txt")]
+    [HttpGet("/robots.txt"), HttpHead("/robots.txt")]
     [OutputCache(PolicyName = "public-content")]
     public async Task<IActionResult> Robots(CancellationToken ct)
     {

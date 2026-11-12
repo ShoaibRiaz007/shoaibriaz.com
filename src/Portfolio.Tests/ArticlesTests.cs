@@ -1,4 +1,11 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Portfolio.Application.Facades;
+using Portfolio.Caching;
+using Portfolio.Controllers;
+using Portfolio.Domain.Entities;
 using Portfolio.Models;
+using Portfolio.Tests.Fakes;
 using Xunit;
 
 namespace Portfolio.Tests;
@@ -54,5 +61,32 @@ public class ArticlesTests
 
         var keywords = DefaultArticles.All.Select(a => a.TargetKeyword).ToList();
         Assert.Equal(keywords.Distinct(StringComparer.OrdinalIgnoreCase).Count(), keywords.Count);
+    }
+
+    [Fact]
+    public async Task HomeController_Index_PopulatesFeaturedArticles()
+    {
+        var bios = new FakeRepository<Bio>();
+        bios.Items.Add(new Bio { FullName = "Shoaib Riaz", Website = "https://www.shoaibriaz.com" });
+        var content = new PublicContentFacade(
+            bios,
+            new FakeRepository<Service>(),
+            new FakeRepository<Experience>(),
+            new FakeRepository<Project>(),
+            new FakeRepository<Skill>(),
+            new FakeRepository<Testimonial>(),
+            new FakeRepository<Education>(),
+            new FakeRepository<Certification>(),
+            new FakeRepository<ProjectMedia>());
+        var pages = new SitePageFacade(new FakeRepository<SitePage>(), new FakeClock(DateTimeOffset.UtcNow));
+        var controller = new HomeController(content, new NotFoundCache(), new ConfigurationBuilder().Build(), pages);
+
+        var result = await controller.Index(CancellationToken.None);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<HomeViewModel>(view.Model);
+        Assert.Equal(4, model.Articles.Count);
+        Assert.Single(model.Articles, a => a.IsPillar);
+        Assert.Equal(3, model.Articles.Count(a => !a.IsPillar));
     }
 }

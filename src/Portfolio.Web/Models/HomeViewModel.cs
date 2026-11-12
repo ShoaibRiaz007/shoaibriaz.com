@@ -15,6 +15,7 @@ public class HomeViewModel : IPublicPage
     public List<Testimonial> Testimonials { get; set; } = new();
     public List<Education> Educations { get; set; } = new();
     public List<Certification> Certifications { get; set; } = new();
+    public IReadOnlyList<Article> Articles { get; set; } = Array.Empty<Article>();
     public int TotalProjects { get; set; }
     public PageMeta Meta { get; set; } = new("", "", "/");
     public PersonFacts? Person { get; set; }
