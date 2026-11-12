@@ -89,4 +89,49 @@ public class ArticlesTests
         Assert.Single(model.Articles, a => a.IsPillar);
         Assert.Equal(3, model.Articles.Count(a => !a.IsPillar));
     }
+
+    [Fact]
+    public async Task HomeController_Article_ExcludesPillarFromRelated_AndTruncatesMetaDescription()
+    {
+        var bios = new FakeRepository<Bio>();
+        bios.Items.Add(new Bio { FullName = "Shoaib Riaz", Website = "https://www.shoaibriaz.com" });
+        var content = new PublicContentFacade(
+            bios,
+            new FakeRepository<Service>(),
+            new FakeRepository<Experience>(),
+            new FakeRepository<Project>(),
+            new FakeRepository<Skill>(),
+            new FakeRepository<Testimonial>(),
+            new FakeRepository<Education>(),
+            new FakeRepository<Certification>(),
+            new FakeRepository<ProjectMedia>());
+        var pages = new SitePageFacade(new FakeRepository<SitePage>(), new FakeClock(DateTimeOffset.UtcNow));
+        var controller = new HomeController(content, new NotFoundCache(), new ConfigurationBuilder().Build(), pages);
+
+        var result = await controller.Article(DefaultArticles.ClusterIpc.Slug, CancellationToken.None);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<ArticleDetailViewModel>(view.Model);
+        Assert.NotNull(model.PillarArticle);
+        Assert.Equal(DefaultArticles.PillarSlug, model.PillarArticle!.Slug);
+        Assert.DoesNotContain(model.RelatedArticles, a => a.IsPillar || a.Slug == DefaultArticles.PillarSlug);
+        Assert.Equal(2, model.RelatedArticles.Count);
+        Assert.InRange(model.Meta.Description.Length, 1, PublicSite.DescriptionMax);
+    }
+
+    [Fact]
+    public void DefaultArticles_CodeBlocksAndBody_HaveStrippedRawIndentation()
+    {
+        foreach (var article in DefaultArticles.All)
+        {
+            var codeBlocks = RichText.Parse(article.Body).OfType<RichText.CodeBlock>().ToList();
+            Assert.NotEmpty(codeBlocks);
+            Assert.All(codeBlocks, cb =>
+            {
+                var nonEmpty = cb.Code.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+                Assert.Contains(nonEmpty, l => !char.IsWhiteSpace(l[0]));
+            });
+            Assert.DoesNotContain("$V_y", article.Body);
+        }
+    }
 }

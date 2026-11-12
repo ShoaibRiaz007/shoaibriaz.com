@@ -180,7 +180,7 @@ public class HomeController : Controller
         if (article is null) return await NotFoundPageAsync(ct);
 
         var bio = await _content.GetBioAsync(ct);
-        var related = DefaultArticles.All.Where(a => a.Slug != article.Slug).ToList();
+        var related = DefaultArticles.All.Where(a => !a.IsPillar && !a.Slug.Equals(article.Slug, StringComparison.OrdinalIgnoreCase)).ToList();
         var pillar = article.IsPillar ? null : DefaultArticles.Pillar;
 
         return View(new ArticleDetailViewModel
@@ -192,7 +192,7 @@ public class HomeController : Controller
             Blocks = RichText.Parse(article.Body),
             Meta = new PageMeta(
                 $"{article.Title} — {bio.FullName}",
-                article.Summary,
+                PublicSite.Truncate(article.Summary, PublicSite.DescriptionMax),
                 $"/article/{article.Slug}",
                 Type: "article"),
         });

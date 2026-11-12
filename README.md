@@ -7,9 +7,8 @@ privacy policy and an interactive 3D tour of the portfolio.
 
 ## Features
 
-- **Public site:** home page, projects with search, area filters and "Show more", project case studies with image
-  and video galleries, CV page, privacy policy, sitemap and robots.txt.
-- **SEO:** schema.org Person / WebSite / ProfilePage data, Open Graph tags, canonical URLs.
+- **Public site:** home page (with featured case studies and featured technical articles), projects with search, area filters and "Show more", project case studies with image and video galleries, technical articles hub (`/articles`, `/article/{slug}`), CV page, privacy policy, sitemap (`GET`/`HEAD`) and robots.txt (`GET`/`HEAD`), plus immutable caching on content-hashed (`?v=`) static assets.
+- **SEO:** schema.org `Person` / `WebSite` / `ProfilePage` / `ProfessionalService` / `TechArticle` JSON-LD data, Open Graph tags, canonical URLs, optional Google Search Console verification tag.
 - **Admin panel** (`/Admin`): edit the profile, projects, experience, skills, services, education, certifications,
   testimonials and the privacy policy; reorder and hide items; guided project editor with multi-file uploads, cover
   selection and captions.
@@ -79,6 +78,7 @@ startup. Sign in at `/Account/Login` with username `admin` (or `Admin:Username`)
 | Admin password | `Admin__Password` | Required on first run, to create the admin account. |
 | Cloudinary | `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret` | Optional; without them uploads are stored on local disk. |
 | Telemetry retention | `Telemetry__RetentionDays` | Days to keep visit and sign-in records. Default 180. |
+| Search Console verification | `Google__SiteVerification` | Optional `<meta name="google-site-verification">` token (`Google:SiteVerification`). |
 | Port | `PORT` | Default 8080. |
 
 Never commit real credentials; set them as user-secrets locally and as environment variables on the host.

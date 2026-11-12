@@ -68,7 +68,7 @@
             </a>
             <nav class="site-nav" id="siteNav" aria-label="Main">
                 <a href="/projects" data-section="work" aria-current="@Current("/projects")">Work</a>
-                <a href="/articles" aria-current="@(path.StartsWith("/article") ? "page" : null)">Articles</a>
+                <a href="/articles" aria-current="@((path.Equals("/articles", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/article/", StringComparison.OrdinalIgnoreCase)) ? "page" : null)">Articles</a>
                 <a href="/#experience" data-section="experience">Experience</a>
                 <a href="/#skills" data-section="skills">Skills</a>
                 <a href="/#about" data-section="about">About</a>

@@ -3,9 +3,10 @@ using System.Text.RegularExpressions;
 namespace Portfolio.Models;
 
 /// <summary>
-/// The light markup editable pages are written in, parsed into blocks the view renders (every piece of text is
-/// HTML-encoded there, so the markup can't inject anything):
-/// "## Heading", "- bullet" lines, paragraphs separated by a blank line, **bold**, [text](link) and {placeholders}.
+/// The light markup editable pages and technical articles are written in, parsed into blocks the view renders
+/// (every piece of text is HTML-encoded there, so the markup can't inject anything):
+/// "## Heading", "### SubHeading", "> Blockquote", fenced "```lang" code blocks, "- bullet" lines,
+/// paragraphs separated by a blank line, **bold**, `code`, [text](link) and {placeholders}.
 /// Links may only be http(s), mailto: or a site path; anything else is shown as plain text.
 /// </summary>
 public static partial class RichText

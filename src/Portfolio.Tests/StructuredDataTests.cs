@@ -234,4 +234,18 @@ public class StructuredDataTests
         Assert.Equal(Origin + "/#person", techArticle.GetProperty("author").GetProperty("@id").GetString());
         Assert.Contains("WinUI 3", techArticle.GetProperty("keywords").GetString());
     }
+
+    [Theory]
+    [InlineData("", new[] { "Worldwide", "Remote" })]
+    [InlineData("Pakistan", new[] { "Worldwide", "Remote", "Pakistan" })]
+    public void HomePage_ProfessionalService_OmitsHardcodedLahore_WhenLocationLacksLocality(string location, string[] expectedAreas)
+    {
+        var bio = Bio();
+        bio.Location = location;
+        var json = PublicSite.StructuredData(bio, Origin, Origin + "/", null, Facts(), profilePage: true);
+
+        var service = Node(json, "ProfessionalService");
+        var actual = service.GetProperty("areaServed").EnumerateArray().Select(e => e.GetString()).ToArray();
+        Assert.Equal(expectedAreas, actual);
+    }
 }

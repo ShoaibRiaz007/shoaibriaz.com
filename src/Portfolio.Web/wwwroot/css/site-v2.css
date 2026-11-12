@@ -868,30 +868,7 @@ details.more[open] .when-open { display: inline; }
 }
 
 .article-hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; }
-.article-page { padding: 36px 0 88px; }
-.article-layout {
-    display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 40px;
-    align-items: start;
-}
-.article-layout-single { grid-template-columns: minmax(0, 1fr); }
-@media (max-width: 900px) {
-    .article-layout { grid-template-columns: 1fr; }
-    .article-sidebar { display: none; }
-}
-.article-sidebar .card {
-    position: sticky;
-    top: calc(var(--header-h) + 24px);
-    padding: 20px;
-}
-.article-toc-title {
-    font-size: 11.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--text-faint); margin-bottom: 12px;
-}
-.article-toc { list-style: none; display: grid; gap: 8px; font-size: 13.5px; }
-.article-toc a { color: var(--text-dim); text-decoration: none; }
-.article-toc a:hover { color: var(--accent); }
+.article-page { padding-bottom: 88px; }
 .article-takeaways { padding: 20px 22px; margin-bottom: 28px; border-left: 3px solid var(--accent); }
 .article-takeaways-title {
     font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
@@ -900,7 +877,7 @@ details.more[open] .when-open { display: inline; }
 .article-cluster-nav { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border); }
 .article-section-title { font-size: 20px; margin-bottom: 16px; }
 .article-author-box { margin-top: 36px; padding: 26px; background: var(--bg-sunken); }
-.article-author-box h4 { font-size: 18px; margin-top: 6px; margin-bottom: 6px; }
+.article-author-box h3 { font-size: 18px; margin-top: 6px; margin-bottom: 6px; }
 .article-author-actions { margin-top: 16px; }
 .article-content { min-width: 0; }
 .article-content h2 {

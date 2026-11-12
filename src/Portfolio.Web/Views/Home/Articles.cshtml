@@ -30,30 +30,7 @@
                 </div>
             </div>
 
-            <article class="card article-card article-pillar" data-enter="card" data-pointer="glow">
-                <div class="article-card-meta">
-                    <span class="chip chip-accent">@pillar.Category</span>
-                    <span class="article-meta-text">@pillar.ReadingTime · Published @pillar.PublishedDate.ToString("MMMM yyyy", CultureInfo.InvariantCulture)</span>
-                </div>
-
-                <h3><a href="/article/@pillar.Slug">@pillar.Title</a></h3>
-                <p class="summary">@pillar.Summary</p>
-
-                @if (pillar.Highlights.Count > 0)
-                {
-                    <ul class="chips article-highlights" aria-label="Key Takeaways">
-                        @foreach (var h in pillar.Highlights)
-                        {
-                            <li class="chip">✓ @h</li>
-                        }
-                    </ul>
-                }
-
-                <div class="article-pillar-foot">
-                    <span class="article-meta-text">Focus: <code>@pillar.TargetKeyword</code></span>
-                    <span class="text-link">Read Architecture Blueprint →</span>
-                </div>
-            </article>
+            <partial name="_ArticleCard" model="pillar" view-data="@(new ViewDataDictionary(ViewData) { ["AsPillar"] = true, ["MaxTech"] = 0, ["PointerGlow"] = true, ["ShowHighlights"] = true, ["ShowFocus"] = true })" />
         </section>
 
         <section class="articles-hub-section" aria-labelledby="clusters-heading">
@@ -67,25 +44,7 @@
             <div class="article-grid" data-stagger data-pointer-each="glow">
                 @foreach (var article in clusters)
                 {
-                    <article class="card article-card" data-enter="card">
-                        <div class="article-card-meta">
-                            <span class="chip">@article.Category</span>
-                            <span class="article-meta-text">@article.ReadingTime</span>
-                        </div>
-
-                        <h3><a href="/article/@article.Slug">@article.Title</a></h3>
-                        <p class="summary">@article.Summary</p>
-
-                        @if (!string.IsNullOrWhiteSpace(article.TechStack))
-                        {
-                            <ul class="chips article-tech" aria-label="Tech">
-                                @foreach (var tech in PublicSite.Csv(article.TechStack))
-                                {
-                                    <li class="chip">@tech</li>
-                                }
-                            </ul>
-                        }
-                    </article>
+                    <partial name="_ArticleCard" model="article" view-data="@(new ViewDataDictionary(ViewData) { ["MaxTech"] = 8 })" />
                 }
             </div>
         </section>

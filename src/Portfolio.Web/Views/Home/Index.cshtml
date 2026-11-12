@@ -213,40 +213,14 @@
             </div>
             @if (pillarArticle is not null)
             {
-                <article class="card article-card article-pillar" data-enter="card" data-pointer="glow">
-                    <div class="article-card-meta">
-                        <span class="chip chip-accent">@pillarArticle.Category</span>
-                        <span class="article-meta-text">@pillarArticle.ReadingTime · @pillarArticle.PublishedDate.ToString("MMM yyyy", CultureInfo.InvariantCulture)</span>
-                    </div>
-                    <h3><a href="/article/@pillarArticle.Slug">@pillarArticle.Title</a></h3>
-                    <p class="summary">@pillarArticle.Summary</p>
-                    @if (!string.IsNullOrWhiteSpace(pillarArticle.TechStack))
-                    {
-                        <ul class="chips article-tech" aria-label="Tech">
-                            @foreach (var tech in PublicSite.Csv(pillarArticle.TechStack).Take(5)) { <li class="chip">@tech</li> }
-                        </ul>
-                    }
-                </article>
+                <partial name="_ArticleCard" model="pillarArticle" view-data="@(new ViewDataDictionary(ViewData) { ["AsPillar"] = true, ["MaxTech"] = 5, ["PointerGlow"] = true })" />
             }
             @if (clusterArticles.Any())
             {
                 <div class="article-grid" data-stagger data-pointer-each="glow">
                     @foreach (var article in clusterArticles)
                     {
-                        <article class="card article-card" data-enter="card">
-                            <div class="article-card-meta">
-                                <span class="chip">@article.Category</span>
-                                <span class="article-meta-text">@article.ReadingTime</span>
-                            </div>
-                            <h3><a href="/article/@article.Slug">@article.Title</a></h3>
-                            <p class="summary">@article.Summary</p>
-                            @if (!string.IsNullOrWhiteSpace(article.TechStack))
-                            {
-                                <ul class="chips article-tech" aria-label="Tech">
-                                    @foreach (var tech in PublicSite.Csv(article.TechStack).Take(4)) { <li class="chip">@tech</li> }
-                                </ul>
-                            }
-                        </article>
+                        <partial name="_ArticleCard" model="article" />
                     }
                 </div>
             }

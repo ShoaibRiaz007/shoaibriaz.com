@@ -191,16 +191,42 @@ public static class PublicSite
         return url;
     }
 
-    /// <summary>schema.org JSON-LD: the owner as a Person, the site as a WebSite, and on the home page a ProfilePage
-    /// about that Person. The career details (job title, employer, skills, schools) appear only on pages that load
-    /// them, so no page states a different job title for the same Person. The default encoder escapes &lt;, &gt; and
-    /// &amp;, so admin text can't close the script element.</summary>
+    /// <summary>schema.org JSON-LD: Person, WebSite, and optionally ProfilePage + ProfessionalService (home page)
+    /// and TechArticle (project case studies and technical articles). Career details (job title, employer, skills,
+    /// schools) appear only on pages that load them, so no page states a different job title for the same Person.
+    /// The default encoder escapes &lt;, &gt; and &amp;, so admin text can't close the script element.</summary>
     public static string StructuredData(Bio bio, string origin, string canonical, string? image, PersonFacts? facts, bool profilePage, Domain.Entities.Project? project = null, Domain.Entities.Article? article = null)
     {
         var personId = origin + "/#person";
         var (locality, region, country) = ParseLocation(bio.Location);
         var role = facts?.Role ?? HeadlineTitle(bio.Headline);
         var disambiguation = DisambiguatingDescription(role, facts?.Employer, bio.Location);
+        Dictionary<string, object?>? Address() => locality is null && country is null ? null : Compact(new()
+        {
+            ["@type"] = "PostalAddress",
+            ["addressLocality"] = locality,
+            ["addressRegion"] = region,
+            ["addressCountry"] = country,
+        });
+        Dictionary<string, object?> TechArticleNode(string headline, string description, string? techStack, string? category, string? proficiency)
+        {
+            var keywords = Csv(techStack);
+            return Compact(new()
+            {
+                ["@type"] = "TechArticle",
+                ["@id"] = canonical + "/#article",
+                ["url"] = canonical,
+                ["headline"] = headline,
+                ["description"] = description,
+                ["author"] = new Dictionary<string, string> { ["@id"] = personId },
+                ["publisher"] = new Dictionary<string, string> { ["@id"] = origin + "/#website" },
+                ["inLanguage"] = "en",
+                ["image"] = image,
+                ["keywords"] = keywords.Length > 0 ? string.Join(", ", keywords) : null,
+                ["about"] = string.IsNullOrWhiteSpace(category) ? null : category,
+                ["proficiencyLevel"] = proficiency,
+            });
+        }
         var person = Compact(new()
         {
             ["@type"] = "Person",
@@ -216,13 +242,7 @@ public static class PublicSite
                 ? facts.Schools.Select(s => new Dictionary<string, object?> { ["@type"] = "EducationalOrganization", ["name"] = s }).ToList()
                 : null,
             ["knowsAbout"] = facts is { Skills.Count: > 0 } ? facts.Skills : null,
-            ["address"] = locality is null && country is null ? null : Compact(new()
-            {
-                ["@type"] = "PostalAddress",
-                ["addressLocality"] = locality,
-                ["addressRegion"] = region,
-                ["addressCountry"] = country,
-            }),
+            ["address"] = Address(),
             ["sameAs"] = new[] { bio.LinkedIn, bio.GitHub }.Where(u => !string.IsNullOrWhiteSpace(u)).ToArray() is { Length: > 0 } links ? links : null,
         });
         var graph = new List<object>
@@ -241,6 +261,10 @@ public static class PublicSite
                 ["@type"] = "ProfilePage", ["url"] = canonical,
                 ["mainEntity"] = new Dictionary<string, string> { ["@id"] = personId },
             });
+            var areaServed = new[] { "Worldwide", "Remote", locality ?? country }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
             graph.Add(Compact(new()
             {
                 ["@type"] = "ProfessionalService",
@@ -249,14 +273,8 @@ public static class PublicSite
                 ["url"] = origin,
                 ["image"] = image,
                 ["provider"] = new Dictionary<string, string> { ["@id"] = personId },
-                ["address"] = locality is null && country is null ? null : Compact(new()
-                {
-                    ["@type"] = "PostalAddress",
-                    ["addressLocality"] = locality,
-                    ["addressRegion"] = region,
-                    ["addressCountry"] = country,
-                }),
-                ["areaServed"] = new[] { "Worldwide", "Remote", locality ?? "Lahore" },
+                ["address"] = Address(),
+                ["areaServed"] = areaServed,
                 ["description"] = string.IsNullOrWhiteSpace(bio.Tagline) ? bio.Headline : bio.Tagline,
                 ["knowsAbout"] = facts is { Skills.Count: > 0 } ? facts.Skills : null,
             }));
@@ -264,41 +282,13 @@ public static class PublicSite
 
         if (project is not null)
         {
-            var keywords = Csv(project.TechStack);
-            graph.Add(Compact(new()
-            {
-                ["@type"] = "TechArticle",
-                ["@id"] = canonical + "/#article",
-                ["url"] = canonical,
-                ["headline"] = project.Title,
-                ["description"] = string.IsNullOrWhiteSpace(project.Summary) ? project.Description : project.Summary,
-                ["author"] = new Dictionary<string, string> { ["@id"] = personId },
-                ["publisher"] = new Dictionary<string, string> { ["@id"] = origin + "/#website" },
-                ["inLanguage"] = "en",
-                ["image"] = image,
-                ["keywords"] = keywords.Length > 0 ? string.Join(", ", keywords) : null,
-                ["about"] = string.IsNullOrWhiteSpace(project.Category) ? null : project.Category,
-            }));
+            var desc = string.IsNullOrWhiteSpace(project.Summary) ? project.Description : project.Summary;
+            graph.Add(TechArticleNode(project.Title, desc, project.TechStack, project.Category, null));
         }
 
         if (article is not null)
         {
-            var keywords = Csv(article.TechStack);
-            graph.Add(Compact(new()
-            {
-                ["@type"] = "TechArticle",
-                ["@id"] = canonical + "/#article",
-                ["url"] = canonical,
-                ["headline"] = article.Title,
-                ["description"] = article.Summary,
-                ["author"] = new Dictionary<string, string> { ["@id"] = personId },
-                ["publisher"] = new Dictionary<string, string> { ["@id"] = origin + "/#website" },
-                ["inLanguage"] = "en",
-                ["image"] = image,
-                ["keywords"] = keywords.Length > 0 ? string.Join(", ", keywords) : null,
-                ["about"] = string.IsNullOrWhiteSpace(article.Category) ? null : article.Category,
-                ["proficiencyLevel"] = "Expert",
-            }));
+            graph.Add(TechArticleNode(article.Title, article.Summary, article.TechStack, article.Category, "Expert"));
         }
 
         return JsonSerializer.Serialize(new Dictionary<string, object> { ["@context"] = "https://schema.org", ["@graph"] = graph });

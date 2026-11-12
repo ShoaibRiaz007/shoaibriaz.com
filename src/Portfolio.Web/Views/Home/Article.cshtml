@@ -5,8 +5,8 @@
     var article = Model.Article;
     var pillar = Model.PillarArticle;
     var related = Model.RelatedArticles;
-
-    var headings = Model.Blocks.OfType<RichText.Heading>().Select(h => h.Text).ToList();
+    var tech = PublicSite.Csv(article.TechStack);
+    var headings = Model.Blocks.OfType<RichText.Heading>().Select(h => (Id: RichText.HeadingId(h.Text), Text: h.Text)).ToList();
 }
 
 <article data-progress>
@@ -31,100 +31,92 @@
 
             <h1 data-enter="hero" style="--i:2">@article.Title</h1>
             <p class="lede" data-enter="hero" style="--i:3">@article.Summary</p>
+        </div>
+    </header>
 
-            @if (!string.IsNullOrWhiteSpace(article.TechStack))
+    <div class="container cs-layout article-page">
+        <div class="cs-main article-content">
+            @if (article.Highlights.Count > 0)
             {
-                <div class="hero-actions" data-enter="hero" style="--i:4">
-                    <ul class="chips" aria-label="Tech Stack">
-                        @foreach (var tech in PublicSite.Csv(article.TechStack))
+                <div class="card article-takeaways" data-enter="card">
+                    <h2 class="article-takeaways-title">Key Engineering Takeaways</h2>
+                    <ul class="chips" aria-label="Key Takeaways">
+                        @foreach (var h in article.Highlights)
                         {
-                            <li class="chip">@tech</li>
+                            <li class="chip chip-accent">✓ @h</li>
                         }
                     </ul>
                 </div>
             }
-        </div>
-    </header>
 
-    <div class="container article-page">
-        <div class="article-layout @(headings.Count == 0 ? "article-layout-single" : "")">
-            @if (headings.Count > 0)
-            {
-                <aside class="article-sidebar" aria-label="Table of Contents">
-                    <div class="card article-sidebar-card">
-                        <h4 class="article-toc-title">On This Page</h4>
-                        <ul class="article-toc">
-                            @foreach (var h in headings)
-                            {
-                                <li>
-                                    <a href="#@RichText.HeadingId(h)">@h</a>
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                </aside>
-            }
+            <div class="article-prose">
+                <partial name="_RichText" model="Model.Blocks" />
+            </div>
 
-            <div class="article-content">
-                @if (article.Highlights.Count > 0)
+            <section class="article-cluster-nav" aria-labelledby="topic-cluster-heading">
+                <h2 id="topic-cluster-heading" class="article-section-title">Topic Cluster Navigation</h2>
+
+                @if (pillar is not null)
                 {
-                    <div class="card article-takeaways" data-enter="card">
-                        <h3 class="article-takeaways-title">Key Engineering Takeaways</h3>
-                        <ul class="chips" aria-label="Key Takeaways">
-                            @foreach (var h in article.Highlights)
-                            {
-                                <li class="chip chip-accent">✓ @h</li>
-                            }
-                        </ul>
-                    </div>
+                    <partial name="_ArticleCard" model="pillar" view-data="@(new ViewDataDictionary(ViewData) { ["AsPillar"] = true, ["Badge"] = "Parent Architecture Blueprint", ["MaxTech"] = 0, ["PointerGlow"] = true })" />
                 }
 
-                <div class="article-prose">
-                    <partial name="_RichText" model="Model.Blocks" />
-                </div>
-
-                <section class="article-cluster-nav" aria-labelledby="topic-cluster-heading">
-                    <h3 id="topic-cluster-heading" class="article-section-title">Topic Cluster Navigation</h3>
-
-                    @if (pillar is not null)
-                    {
-                        <article class="card article-card article-pillar" data-pointer="glow">
-                            <div class="article-card-meta">
-                                <span class="chip chip-accent">Parent Architecture Blueprint</span>
-                                <span class="article-meta-text">@pillar.ReadingTime</span>
-                            </div>
-                            <h4><a href="/article/@pillar.Slug">@pillar.Title</a></h4>
-                            <p class="summary">@pillar.Summary</p>
-                        </article>
-                    }
-
-                    <div class="article-related-grid" data-pointer-each="glow">
+                @if (related.Any())
+                {
+                    <div class="article-related-grid" data-stagger data-pointer-each="glow">
                         @foreach (var rel in related)
                         {
-                            <article class="card article-card">
-                                <div class="article-card-meta">
-                                    <span class="chip">@rel.Category</span>
-                                    <span class="article-meta-text">@rel.ReadingTime</span>
-                                </div>
-                                <h4><a href="/article/@rel.Slug">@rel.Title</a></h4>
-                                <p class="summary">@rel.Summary</p>
-                            </article>
+                            <partial name="_ArticleCard" model="rel" view-data="@(new ViewDataDictionary(ViewData) { ["MaxTech"] = 0 })" />
                         }
                     </div>
-                </section>
+                }
+            </section>
 
-                <div class="card article-author-box">
-                    <div>
-                        <span class="kicker">About the Author</span>
-                        <h4>@bio.FullName</h4>
-                        <p class="muted">@bio.Tagline</p>
-                        <div class="hero-actions article-author-actions">
-                            <a href="/#contact" class="btn btn-ghost btn-sm">Get in Touch</a>
-                            <a href="/cv" class="btn btn-ghost btn-sm">View Experience / CV</a>
-                        </div>
+            <div class="card article-author-box">
+                <div>
+                    <span class="kicker">About the Author</span>
+                    <h3>@bio.FullName</h3>
+                    <p class="muted">@bio.Tagline</p>
+                    <div class="hero-actions article-author-actions">
+                        <a href="/#contact" class="btn btn-ghost btn-sm">Get in Touch</a>
+                        <a href="/cv" class="btn btn-ghost btn-sm">View Experience / CV</a>
                     </div>
                 </div>
             </div>
         </div>
+
+        <aside data-stagger>
+            @if (headings.Count > 0)
+            {
+                <nav class="card side-card toc" aria-label="On this page" data-spy data-enter="slide-right">
+                    <h2 class="side-title">On this page</h2>
+                    <ol>
+                        @foreach (var (id, text) in headings)
+                        {
+                            <li><a href="#@id">@text</a></li>
+                        }
+                    </ol>
+                </nav>
+            }
+            @if (tech.Length > 0)
+            {
+                <div class="card side-card" data-enter="slide-right">
+                    <h2 class="side-title">Tech stack</h2>
+                    <ul class="chips">@foreach (var t in tech) { <li class="chip" data-enter-item="pop">@t</li> }</ul>
+                </div>
+            }
+            <div class="card side-card" data-enter="slide-right" data-pointer-area>
+                <h2 class="side-title">Architecture consulting</h2>
+                <p class="muted side-note">Building something similar?</p>
+                @if (!string.IsNullOrWhiteSpace(bio.Email))
+                {
+                    <a class="btn btn-ghost btn-sm" data-pointer="magnet" href="mailto:@bio.Email">Get in touch</a>
+                }
+                else
+                {
+                    <a class="btn btn-ghost btn-sm" data-pointer="magnet" href="/#contact">Get in touch</a>
+                }
+            </div>
+        </aside>
     </div>
 </article>

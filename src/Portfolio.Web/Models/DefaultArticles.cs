@@ -49,20 +49,20 @@ public static class DefaultArticles
             Rather than loading all features into a single heavy executable, the architecture divides responsibilities across three dedicated process tiers:
 
             ```
-            +-------------------------------------------------------------+
-            |                  Host / Launcher Process                    |
-            |   (WinUI 3 / WPF Shell, Licensing, Process Coordinator)     |
-            +-------------------------------------------------------------+
-                                      |
-                      JSON-RPC 2.0 Over Named Pipes
-                                      |
-            +-------------------------+-----------------------------------+
-            |                                                             |
-            v                                                             v
-    +------------------------------+              +-------------------------------+
-    |   Enterprise Product Tier    |              |      GenAI & Worker Daemon    |
-    | (.NET 9 + React in WebView2) |              |   (Claude API, Local Tools)   |
-    +------------------------------+              +-------------------------------+
+            +-------------------------------------------------------------------+
+            |                     Host / Launcher Process                       |
+            |      (WinUI 3 / WPF Shell, Licensing, Process Coordinator)        |
+            +-------------------------------------------------------------------+
+                                              |
+                              JSON-RPC 2.0 Over Named Pipes
+                                              |
+                       +----------------------+----------------------+
+                       |                                             |
+                       v                                             v
+            +------------------------------+      +-------------------------------+
+            |   Enterprise Product Tier    |      |     GenAI & Worker Daemon     |
+            | (.NET 9 + React in WebView2) |      |   (Claude API, Local Tools)   |
+            +------------------------------+      +-------------------------------+
             ```
 
             ### 1. The Coordinator / Launcher
@@ -133,7 +133,7 @@ public static class DefaultArticles
             - Standardize on JSON-RPC 2.0 over Named Pipes for high-throughput, secure communication.
             - Leverage React micro-frontends inside WebView2 for agile UI design while keeping heavy processing in .NET 9.
             - Guard AI workflows behind strict schema constraints and validation harnesses.
-"""",
+            """",
     };
 
     public static readonly Article ClusterIpc = new()
@@ -290,7 +290,7 @@ public static class DefaultArticles
 
             For the broader multi-process design pattern this fits into, see our pillar architecture:
             [Enterprise .NET 9 Desktop Architecture & AI Agent Tooling](/article/enterprise-dotnet-9-desktop-architecture-ai-tooling).
-"""",
+            """",
     };
 
     public static readonly Article ClusterUnity = new()
@@ -420,7 +420,7 @@ public static class DefaultArticles
             ## Heuristic Solvability Simulation
 
             Before saving a generated level as a `ScriptableObject`, our C# validator tests:
-            - **Max Jump Distance:** Can a character with jump velocity $V_y = 12$ and horizontal speed $V_x = 8$ clear every consecutive gap?
+            - **Max Jump Distance:** Can a character with jump velocity `Vy = 12` and horizontal speed `Vx = 8` clear every consecutive gap?
             - **Pacing Metrics:** Are there at least 3 seconds of low-hazard traversal between intense obstacle clusters?
             - **Collectible Reachability:** Are all bonus rewards physically accessible without taking mandatory damage?
 
@@ -432,7 +432,7 @@ public static class DefaultArticles
 
             Explore the overarching architecture this fits into:
             [Enterprise .NET 9 Desktop Architecture & AI Agent Tooling](/article/enterprise-dotnet-9-desktop-architecture-ai-tooling).
-"""",
+            """",
     };
 
     public static readonly Article ClusterOffice = new()
@@ -548,7 +548,7 @@ public static class DefaultArticles
 
             Learn more about the full desktop topology this pattern anchors:
             [Enterprise .NET 9 Desktop Architecture & AI Agent Tooling](/article/enterprise-dotnet-9-desktop-architecture-ai-tooling).
-"""",
+            """",
     };
 
     public static readonly IReadOnlyList<Article> All = [Pillar, ClusterIpc, ClusterUnity, ClusterOffice];

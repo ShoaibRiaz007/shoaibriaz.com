@@ -1,0 +1,43 @@
+@model Article
+@{
+    var asPillar = ViewData["AsPillar"] as bool? ?? false;
+    var badge = ViewData["Badge"] as string ?? Model.Category;
+    var showDate = ViewData["ShowDate"] as bool? ?? asPillar;
+    var maxTech = ViewData["MaxTech"] as int? ?? 4;
+    var pointerGlow = ViewData["PointerGlow"] as bool? ?? false;
+    var showHighlights = ViewData["ShowHighlights"] as bool? ?? false;
+    var showFocus = ViewData["ShowFocus"] as bool? ?? false;
+}
+<article class="card article-card @(asPillar ? "article-pillar" : "")" data-enter="card" data-pointer="@(pointerGlow ? "glow" : null)">
+    <div class="article-card-meta">
+        <span class="chip @(asPillar ? "chip-accent" : "")">@badge</span>
+        <span class="article-meta-text">@Model.ReadingTime@(showDate ? $" · {Model.PublishedDate.ToString("MMM yyyy", CultureInfo.InvariantCulture)}" : "")</span>
+    </div>
+    <h3><a href="/article/@Model.Slug">@Model.Title</a></h3>
+    <p class="summary">@Model.Summary</p>
+    @if (showHighlights && Model.Highlights.Count > 0)
+    {
+        <ul class="chips article-highlights" aria-label="Key Takeaways">
+            @foreach (var h in Model.Highlights)
+            {
+                <li class="chip">✓ @h</li>
+            }
+        </ul>
+    }
+    @if (maxTech > 0 && !string.IsNullOrWhiteSpace(Model.TechStack))
+    {
+        <ul class="chips article-tech" aria-label="Tech">
+            @foreach (var tech in PublicSite.Csv(Model.TechStack).Take(maxTech))
+            {
+                <li class="chip">@tech</li>
+            }
+        </ul>
+    }
+    @if (showFocus && !string.IsNullOrWhiteSpace(Model.TargetKeyword))
+    {
+        <div class="article-pillar-foot">
+            <span class="article-meta-text">Focus: <code>@Model.TargetKeyword</code></span>
+            <span class="text-link">Read Architecture Blueprint →</span>
+        </div>
+    }
+</article>
